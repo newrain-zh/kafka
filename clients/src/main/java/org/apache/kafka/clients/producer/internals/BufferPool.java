@@ -46,46 +46,48 @@ public class BufferPool {
 
     static final String WAIT_TIME_SENSOR_NAME = "bufferpool-wait-time";
 
-    private final long totalMemory;
-    private final int poolableSize;
-    private final ReentrantLock lock;
-    private final Deque<ByteBuffer> free;
-    private final Deque<Condition> waiters;
-    /** Total available memory is the sum of nonPooledAvailableMemory and the number of byte buffers in free * poolableSize.  */
-    private long nonPooledAvailableMemory;
-    private final Metrics metrics;
-    private final Time time;
-    private final Sensor waitTime;
-    private boolean closed;
+    private final long              totalMemory; // 内存池总容量，由 buffer.memory 参数设置，控制生成生产者的最大内存
+    private final int               poolableSize; // 缓冲池中可复用缓冲区的大小，batch.size 参数设置，此大小的 ByteBuffer 缓冲区大小会被缓冲复用
+    private final ReentrantLock     lock;
+    private final Deque<ByteBuffer> free; // 缓冲池中可复用缓冲区队列
+    private final Deque<Condition>  waiters; //  等待获取缓冲区的线程队列
+    /**
+     * Total available memory is the sum of nonPooledAvailableMemory and the number of byte buffers in free * poolableSize.
+     */
+    private       long              nonPooledAvailableMemory; // 非池化可用内存，用于存储超过 poolableSize 的临时分配内存（释放后直接归还至此，不缓存）
+    private final Metrics           metrics; // 监控指标（如等待时间、内存使用率），用于性能分析和调优
+    private final Time              time; // 时间工具类
+    private final Sensor            waitTime; // 记录线程再内存分配时的阻塞时间
+    private       boolean           closed; // 标记内存池是否已经关闭（关闭后拒绝新分配，释放所有资源）
 
     /**
      * Create a new buffer pool
      *
-     * @param memory The maximum amount of memory that this buffer pool can allocate
-     * @param poolableSize The buffer size to cache in the free list rather than deallocating
-     * @param metrics instance of Metrics
-     * @param time time instance
+     * @param memory        The maximum amount of memory that this buffer pool can allocate
+     * @param poolableSize  The buffer size to cache in the free list rather than deallocating
+     * @param metrics       instance of Metrics
+     * @param time          time instance
      * @param metricGrpName logical group name for metrics
      */
     public BufferPool(long memory, int poolableSize, Metrics metrics, Time time, String metricGrpName) {
-        this.poolableSize = poolableSize;
-        this.lock = new ReentrantLock();
-        this.free = new ArrayDeque<>();
-        this.waiters = new ArrayDeque<>();
-        this.totalMemory = memory;
+        this.poolableSize             = poolableSize;
+        this.lock                     = new ReentrantLock();
+        this.free                     = new ArrayDeque<>();
+        this.waiters                  = new ArrayDeque<>();
+        this.totalMemory              = memory;
         this.nonPooledAvailableMemory = memory;
-        this.metrics = metrics;
-        this.time = time;
-        this.waitTime = this.metrics.sensor(WAIT_TIME_SENSOR_NAME);
+        this.metrics                  = metrics;
+        this.time                     = time;
+        this.waitTime                 = this.metrics.sensor(WAIT_TIME_SENSOR_NAME);
         MetricName rateMetricName = metrics.metricName("bufferpool-wait-ratio",
-                                                   metricGrpName,
-                                                   "The fraction of time an appender waits for space allocation.");
+                metricGrpName,
+                "The fraction of time an appender waits for space allocation.");
         MetricName totalNsMetricName = metrics.metricName("bufferpool-wait-time-ns-total",
-                                                    metricGrpName,
-                                                    "The total time in nanoseconds an appender waits for space allocation.");
+                metricGrpName,
+                "The total time in nanoseconds an appender waits for space allocation.");
 
-        Sensor bufferExhaustedRecordSensor = metrics.sensor("buffer-exhausted-records");
-        MetricName bufferExhaustedRateMetricName = metrics.metricName("buffer-exhausted-rate", metricGrpName, "The average per-second number of record sends that are dropped due to buffer exhaustion");
+        Sensor     bufferExhaustedRecordSensor    = metrics.sensor("buffer-exhausted-records");
+        MetricName bufferExhaustedRateMetricName  = metrics.metricName("buffer-exhausted-rate", metricGrpName, "The average per-second number of record sends that are dropped due to buffer exhaustion");
         MetricName bufferExhaustedTotalMetricName = metrics.metricName("buffer-exhausted-total", metricGrpName, "The total number of record sends that are dropped due to buffer exhaustion");
         bufferExhaustedRecordSensor.add(new Meter(bufferExhaustedRateMetricName, bufferExhaustedTotalMetricName));
 
@@ -97,19 +99,19 @@ public class BufferPool {
      * Allocate a buffer of the given size. This method blocks if there is not enough memory and the buffer pool
      * is configured with blocking mode.
      *
-     * @param size The buffer size to allocate in bytes
+     * @param size             The buffer size to allocate in bytes
      * @param maxTimeToBlockMs The maximum time in milliseconds to block for buffer memory to be available
      * @return The buffer
-     * @throws InterruptedException If the thread is interrupted while blocked
+     * @throws InterruptedException     If the thread is interrupted while blocked
      * @throws IllegalArgumentException if size is larger than the total memory controlled by the pool (and hence we would block
-     *         forever)
+     *                                  forever)
      */
     public ByteBuffer allocate(int size, long maxTimeToBlockMs) throws InterruptedException {
         if (size > this.totalMemory)
             throw new IllegalArgumentException("Attempt to allocate " + size
-                                               + " bytes, but there is a hard limit of "
-                                               + this.totalMemory
-                                               + " on memory allocations.");
+                    + " bytes, but there is a hard limit of "
+                    + this.totalMemory
+                    + " on memory allocations.");
 
         ByteBuffer buffer = null;
         this.lock.lock();
@@ -130,20 +132,21 @@ public class BufferPool {
             if (this.nonPooledAvailableMemory + freeListSize >= size) {
                 // we have enough unallocated or pooled memory to immediately
                 // satisfy the request, but need to allocate the buffer
+                // 我们有足够的未分配或汇总的内存以立即满足请求，但需要分配缓冲区
                 freeUp(size);
                 this.nonPooledAvailableMemory -= size;
             } else {
                 // we are out of memory and will have to block
-                int accumulated = 0;
-                Condition moreMemory = this.lock.newCondition();
+                int       accumulated = 0;
+                Condition moreMemory  = this.lock.newCondition();
                 try {
                     long remainingTimeToBlockNs = TimeUnit.MILLISECONDS.toNanos(maxTimeToBlockMs);
                     this.waiters.addLast(moreMemory);
                     // loop over and over until we have a buffer or have reserved
                     // enough memory to allocate one
                     while (accumulated < size) {
-                        long startWaitNs = time.nanoseconds();
-                        long timeNs;
+                        long    startWaitNs = time.nanoseconds();
+                        long    timeNs;
                         boolean waitingTimeElapsed;
                         try {
                             waitingTimeElapsed = !moreMemory.await(remainingTimeToBlockNs, TimeUnit.NANOSECONDS);
@@ -159,8 +162,8 @@ public class BufferPool {
                         if (waitingTimeElapsed) {
                             this.metrics.sensor("buffer-exhausted-records").record();
                             throw new BufferExhaustedException("Failed to allocate " + size + " bytes within the configured max blocking time "
-                                + maxTimeToBlockMs + " ms. Total memory: " + totalMemory() + " bytes. Available memory: " + availableMemory()
-                                + " bytes. Poolable size: " + poolableSize() + " bytes");
+                                    + maxTimeToBlockMs + " ms. Total memory: " + totalMemory() + " bytes. Available memory: " + availableMemory()
+                                    + " bytes. Poolable size: " + poolableSize() + " bytes");
                         }
 
                         remainingTimeToBlockNs -= timeNs;
@@ -169,7 +172,7 @@ public class BufferPool {
                         // otherwise allocate memory
                         if (accumulated == 0 && size == this.poolableSize && !this.free.isEmpty()) {
                             // just grab a buffer from the free list
-                            buffer = this.free.pollFirst();
+                            buffer      = this.free.pollFirst();
                             accumulated = size;
                         } else {
                             // we'll need to allocate memory, but we may only get
@@ -254,8 +257,8 @@ public class BufferPool {
      * memory as free.
      *
      * @param buffer The buffer to return
-     * @param size The size of the buffer to mark as deallocated, note that this may be smaller than buffer.capacity
-     *             since the buffer may re-allocate itself during in-place compression
+     * @param size   The size of the buffer to mark as deallocated, note that this may be smaller than buffer.capacity
+     *               since the buffer may re-allocate itself during in-place compression
      */
     public void deallocate(ByteBuffer buffer, int size) {
         lock.lock();

@@ -127,8 +127,8 @@ class ControllerServer(
       this.logIdent = logContext.logPrefix()
       info("Starting controller")
       config.dynamicConfig.initialize(clientMetricsReceiverPluginOpt = None)
-
-      maybeChangeStatus(STARTING, STARTED)
+      // 状态变更与基础监控
+      maybeChangeStatus(STARTING, STARTED) // 更新状态为 STARTED
 
       metricsGroup.newGauge("ClusterId", () => clusterId)
       metricsGroup.newGauge("yammer-metrics-count", () =>  KafkaYammerMetrics.defaultRegistry.allMetrics.size)
@@ -160,13 +160,14 @@ class ControllerServer(
       )
 
       //  metrics will be set to null when closing a controller, so we should recreate it for testing
+      // 网络层初始化
       if (sharedServer.metrics == null){
         sharedServer.metrics = new Metrics()
       }
 
       tokenCache = new DelegationTokenCache(ScramMechanism.mechanismNames)
       credentialProvider = new CredentialProvider(ScramMechanism.mechanismNames, tokenCache)
-      socketServer = new SocketServer(config,
+      socketServer = new SocketServer(config, // 创建 Socket处理网络请求
         metrics,
         time,
         credentialProvider,

@@ -20,7 +20,6 @@ import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.common.utils.Utils;
-
 import org.slf4j.Logger;
 
 import java.util.Arrays;
@@ -32,27 +31,27 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Built-in default partitioner.  Note, that this is just a utility class that is used directly from
  * RecordAccumulator, it does not implement the Partitioner interface.
- *
+ * <p>
  * The class keeps track of various bookkeeping information required for adaptive sticky partitioning
  * (described in detail in KIP-794).  There is one partitioner object per topic.
  */
 public class BuiltInPartitioner {
     private final Logger log;
     private final String topic;
-    private final int stickyBatchSize;
+    private final int    stickyBatchSize;
 
-    private volatile PartitionLoadStats partitionLoadStats = null;
-    private final AtomicReference<StickyPartitionInfo> stickyPartitionInfo = new AtomicReference<>();
+    private volatile PartitionLoadStats                   partitionLoadStats  = null;
+    private final    AtomicReference<StickyPartitionInfo> stickyPartitionInfo = new AtomicReference<>();
 
 
     /**
      * BuiltInPartitioner constructor.
      *
-     * @param topic The topic
+     * @param topic           The topic
      * @param stickyBatchSize How much to produce to partition before switch
      */
     public BuiltInPartitioner(LogContext logContext, String topic, int stickyBatchSize) {
-        this.log = logContext.logger(BuiltInPartitioner.class);
+        this.log   = logContext.logger(BuiltInPartitioner.class);
         this.topic = topic;
         if (stickyBatchSize < 1) {
             throw new IllegalArgumentException("stickyBatchSize must be >= 1 but got " + stickyBatchSize);
@@ -68,16 +67,19 @@ public class BuiltInPartitioner {
 
         // Cache volatile variable in local variable.
         PartitionLoadStats partitionLoadStats = this.partitionLoadStats;
-        int partition;
+        int                partition;
 
-        if (partitionLoadStats == null) {
+        if (partitionLoadStats == null) { // 无负载统计
             // We don't have stats to do adaptive partitioning (or it's disabled), just switch to the next
             // partition based on uniform distribution.
+            // 无负载统计信息的情况下，使用均匀分布
+            // 从可用分区中随机选择一个可用分区
             List<PartitionInfo> availablePartitions = cluster.availablePartitionsForTopic(topic);
             if (!availablePartitions.isEmpty()) {
                 partition = availablePartitions.get(random % availablePartitions.size()).partition();
             } else {
                 // We don't have available partitions, just pick one among all partitions.
+                // 从全部分区选择一个
                 List<PartitionInfo> partitions = cluster.partitionsForTopic(topic);
                 partition = random % partitions.size();
             }
@@ -85,12 +87,13 @@ public class BuiltInPartitioner {
             // Calculate next partition based on load distribution.
             // Note that partitions without leader are excluded from the partitionLoadStats.
             assert partitionLoadStats.length > 0;
-
+            // 计算加权随机范围
             int[] cumulativeFrequencyTable = partitionLoadStats.cumulativeFrequencyTable;
-            int weightedRandom = random % cumulativeFrequencyTable[partitionLoadStats.length - 1];
+            int   weightedRandom           = random % cumulativeFrequencyTable[partitionLoadStats.length - 1];
 
             // By construction, the cumulative frequency table is sorted, so we can use binary
             // search to find the desired index.
+            // 二分查找定位分区索引
             int searchResult = Arrays.binarySearch(cumulativeFrequencyTable, 0, partitionLoadStats.length, weightedRandom);
 
             // binarySearch results the index of the found element, or -(insertion_point) - 1
@@ -102,8 +105,10 @@ public class BuiltInPartitioner {
             // and we're looking for 3, then we'd get the insertion_point = 0, and the function
             // would return -0 - 1 = -1, by adding 1 we'd get 0.  If we're looking for 4, we'd
             // get 0, and we need the next one, so adding 1 works here as well.
+            // 计算实际分区索引（处理二分查找边界情况）
             int partitionIndex = Math.abs(searchResult + 1);
             assert partitionIndex < partitionLoadStats.length;
+            // 映射到真实分区ID
             partition = partitionLoadStats.partitionIds[partitionIndex];
         }
 
@@ -128,14 +133,14 @@ public class BuiltInPartitioner {
     /**
      * Peek currently chosen sticky partition.  This method works in conjunction with {@link #isPartitionChanged}
      * and {@link #updatePartitionInfo}.  The workflow is the following:
-     *
+     * <p>
      * 1. peekCurrentPartitionInfo is called to know which partition to lock.
      * 2. Lock partition's batch queue.
      * 3. isPartitionChanged under lock to make sure that nobody raced us.
      * 4. Append data to buffer.
      * 5. updatePartitionInfo to update produced bytes and maybe switch partition.
-     *
-     *  It's important that steps 3-5 are under partition's batch queue lock.
+     * <p>
+     * It's important that steps 3-5 are under partition's batch queue lock.
      *
      * @param cluster The cluster information (needed if there is no current partition)
      * @return sticky partition info object
@@ -172,7 +177,7 @@ public class BuiltInPartitioner {
      *
      * @param partitionInfo The sticky partition info object returned by peekCurrentPartitionInfo
      * @param appendedBytes The number of bytes appended to this partition
-     * @param cluster The cluster information
+     * @param cluster       The cluster information
      */
     void updatePartitionInfo(StickyPartitionInfo partitionInfo, int appendedBytes, Cluster cluster) {
         updatePartitionInfo(partitionInfo, appendedBytes, cluster, true);
@@ -184,8 +189,8 @@ public class BuiltInPartitioner {
      *
      * @param partitionInfo The sticky partition info object returned by peekCurrentPartitionInfo
      * @param appendedBytes The number of bytes appended to this partition
-     * @param cluster The cluster information
-     * @param enableSwitch If true, switch partition once produced enough bytes
+     * @param cluster       The cluster information
+     * @param enableSwitch  If true, switch partition once produced enough bytes
      */
     void updatePartitionInfo(StickyPartitionInfo partitionInfo, int appendedBytes, Cluster cluster, boolean enableSwitch) {
         // partitionInfo may be null if the caller didn't use built-in partitioner.
@@ -217,7 +222,7 @@ public class BuiltInPartitioner {
         // between stickyBatchSize and stickyBatchSize * 2 bytes, to better align with batch boundary.
         if (producedBytes >= stickyBatchSize * 2) {
             log.trace("Produced {} bytes, exceeding twice the batch size of {} bytes, with switching set to {}",
-                producedBytes, stickyBatchSize, enableSwitch);
+                    producedBytes, stickyBatchSize, enableSwitch);
         }
 
         if (producedBytes >= stickyBatchSize && enableSwitch || producedBytes >= stickyBatchSize * 2) {
@@ -231,12 +236,12 @@ public class BuiltInPartitioner {
      * Update partition load stats from the queue sizes of each partition
      * NOTE: queueSizes are modified in place to avoid allocations
      *
-     * @param queueSizes The queue sizes, partitions without leaders are excluded
+     * @param queueSizes   The queue sizes, partitions without leaders are excluded
      * @param partitionIds The partition ids for the queues, partitions without leaders are excluded
-     * @param length The logical length of the arrays (could be less): we may eliminate some partitions
-     *               based on latency, but to avoid reallocation of the arrays, we just decrement
-     *               logical length
-     * Visible for testing
+     * @param length       The logical length of the arrays (could be less): we may eliminate some partitions
+     *                     based on latency, but to avoid reallocation of the arrays, we just decrement
+     *                     logical length
+     *                     Visible for testing
      */
     public void updatePartitionLoadStats(int[] queueSizes, int[] partitionIds, int length) {
         if (queueSizes == null) {
@@ -278,8 +283,8 @@ public class BuiltInPartitioner {
         // and 5, 6, 7 would map to partition[2].
 
         // Calculate max queue size + 1 and check if all sizes are the same.
-        int maxSizePlus1 = queueSizes[0];
-        boolean allEqual = true;
+        int     maxSizePlus1 = queueSizes[0];
+        boolean allEqual     = true;
         for (int i = 1; i < length; i++) {
             if (queueSizes[i] != maxSizePlus1)
                 allEqual = false;
@@ -311,7 +316,7 @@ public class BuiltInPartitioner {
      * Info for the current sticky partition.
      */
     public static class StickyPartitionInfo {
-        private final int index;
+        private final int           index; // 分区号
         private final AtomicInteger producedBytes = new AtomicInteger();
 
         StickyPartitionInfo(int index) {
@@ -336,14 +341,14 @@ public class BuiltInPartitioner {
     private static final class PartitionLoadStats {
         public final int[] cumulativeFrequencyTable;
         public final int[] partitionIds;
-        public final int length;
+        public final int   length;
 
         public PartitionLoadStats(int[] cumulativeFrequencyTable, int[] partitionIds, int length) {
             assert cumulativeFrequencyTable.length == partitionIds.length;
             assert length <= cumulativeFrequencyTable.length;
             this.cumulativeFrequencyTable = cumulativeFrequencyTable;
-            this.partitionIds = partitionIds;
-            this.length = length;
+            this.partitionIds             = partitionIds;
+            this.length                   = length;
         }
     }
 }

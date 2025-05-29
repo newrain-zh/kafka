@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 /*
  * A thread-safe helper class to hold batches that haven't been acknowledged yet (including those
  * which have and have not been sent).
+ * 一个线程安全的帮助程序类，用于保存尚未确认的批处理（包括已发送和尚未发送的批处理）。
  */
 class IncompleteBatches {
     private final Set<ProducerBatch> incomplete;

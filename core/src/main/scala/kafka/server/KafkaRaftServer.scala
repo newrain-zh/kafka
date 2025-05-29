@@ -91,7 +91,10 @@ class KafkaRaftServer(
     Mx4jLoader.maybeLoad()
     // Controller component must be started before the broker component so that
     // the controller endpoints are passed to the KRaft manager
+    // 启动 Controller组件
+    // Controller负责集群元数据管理，
     controller.foreach(_.startup())
+    // 启动 Broker组件
     broker.foreach(_.startup())
     AppInfoParser.registerAppInfo(Server.MetricsPrefix, config.brokerId.toString, metrics, time.milliseconds())
     info(KafkaBroker.STARTED_MESSAGE)

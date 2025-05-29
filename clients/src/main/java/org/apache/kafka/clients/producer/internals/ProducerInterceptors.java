@@ -56,7 +56,10 @@ public class ProducerInterceptors<K, V> implements Closeable {
      * If an interceptor in the middle of the chain, that normally modifies the record, throws an exception,
      * the next interceptor in the chain will be called with a record returned by the previous interceptor that did not
      * throw an exception.
-     *
+     * 当 Client 端在 key 和 value 序列化之前将记录发送到 KafkaProducer 时，将调用此函数。
+     * 该方法调用 {@link ProducerInterceptoronSend（ProducerRecord）} 方法。
+     * 从第一个拦截器的 onSend（） 返回的 ProducerRecord 被传递给第二个拦截器 onSend（），
+     * 依此类推，在拦截器链中。从最后一个拦截器返回的记录从此方法返回。
      * @param record the record from client
      * @return producer record to send to topic/partition
      */

@@ -5,8 +5,8 @@
  * The ASF licenses this file to You under the Apache License, Version 2.0
  * (the "License"); you may not use this file except in compliance with
  * the License.  You may obtain a copy of the License at
- * 
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,13 +17,14 @@
 
 package kafka
 
-import java.util.Properties
 import joptsimple.OptionParser
 import kafka.server.{KafkaConfig, KafkaRaftServer, Server}
 import kafka.utils.Implicits._
 import kafka.utils.Logging
-import org.apache.kafka.common.utils.{Exit, Java, LoggingSignalHandler, OperatingSystem, Time, Utils}
+import org.apache.kafka.common.utils._
 import org.apache.kafka.server.util.CommandLineUtils
+
+import java.util.Properties
 
 object Kafka extends Logging {
 
@@ -69,9 +70,15 @@ object Kafka extends Logging {
     )
   }
 
+  // kafka服务的启动入口，处理命令参数并启动服务
+  // kafka的启动必须有 server.properties
   def main(args: Array[String]): Unit = {
     try {
+      // 解析命令行参数生产Properties
+      // kafka启动必须指定 server.properties
+      // 这里会去读配置文件，并生成Properties
       val serverProps = getPropsFromArgs(args)
+      // 创建 kafkaServer实例
       val server = buildServer(serverProps)
 
       try {
@@ -84,6 +91,7 @@ object Kafka extends Logging {
       }
 
       // attach shutdown handler to catch terminating signals as well as normal termination
+      //
       Exit.addShutdownHook("kafka-shutdown-hook", () => {
         try server.shutdown()
         catch {

@@ -16,7 +16,8 @@ Configuration:
   Properties:
     Property:
       - name: "logPattern"
-        value: "[%d] %p %m (%c)%n"
+#        value: "[%d] %p %m (%c)%n"
+        value: "%highlight{[%d] %p %m (%c:%L)}{ERROR=red, WARN=yellow, INFO=green, DEBUG=cyan}%n"
 
   Appenders:
     Console:
@@ -29,4 +30,3 @@ Configuration:
       level: WARN
       AppenderRef:
         - ref: STDERR
-

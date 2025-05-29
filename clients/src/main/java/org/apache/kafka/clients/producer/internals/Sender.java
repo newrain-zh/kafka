@@ -16,30 +16,9 @@
  */
 package org.apache.kafka.clients.producer.internals;
 
-import org.apache.kafka.clients.ClientRequest;
-import org.apache.kafka.clients.ClientResponse;
-import org.apache.kafka.clients.KafkaClient;
-import org.apache.kafka.clients.Metadata;
-import org.apache.kafka.clients.MetadataSnapshot;
-import org.apache.kafka.clients.NetworkClientUtils;
-import org.apache.kafka.clients.RequestCompletionHandler;
-import org.apache.kafka.common.InvalidRecordException;
-import org.apache.kafka.common.KafkaException;
-import org.apache.kafka.common.MetricName;
-import org.apache.kafka.common.Node;
-import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.errors.AuthenticationException;
-import org.apache.kafka.common.errors.ClusterAuthorizationException;
-import org.apache.kafka.common.errors.FencedLeaderEpochException;
-import org.apache.kafka.common.errors.InvalidMetadataException;
-import org.apache.kafka.common.errors.NotLeaderOrFollowerException;
-import org.apache.kafka.common.errors.RetriableException;
-import org.apache.kafka.common.errors.TimeoutException;
-import org.apache.kafka.common.errors.TopicAuthorizationException;
-import org.apache.kafka.common.errors.TransactionAbortedException;
-import org.apache.kafka.common.errors.TransactionalIdAuthorizationException;
-import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
+import org.apache.kafka.clients.*;
+import org.apache.kafka.common.*;
+import org.apache.kafka.common.errors.*;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.metrics.Sensor;
 import org.apache.kafka.common.metrics.stats.Avg;
@@ -48,27 +27,14 @@ import org.apache.kafka.common.metrics.stats.Meter;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.RecordBatch;
-import org.apache.kafka.common.requests.AbstractRequest;
-import org.apache.kafka.common.requests.FindCoordinatorRequest;
-import org.apache.kafka.common.requests.ProduceRequest;
-import org.apache.kafka.common.requests.ProduceResponse;
-import org.apache.kafka.common.requests.RequestHeader;
+import org.apache.kafka.common.requests.*;
 import org.apache.kafka.common.utils.KafkaThread;
 import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.common.utils.Time;
-
 import org.slf4j.Logger;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -90,6 +56,7 @@ public class Sender implements Runnable {
     private final ProducerMetadata metadata;
 
     /* the flag indicating whether the producer should guarantee the message order on the broker or not. */
+    // 指示生成者是否应保证代理上的消息顺序的标志。
     private final boolean guaranteeMessageOrder;
 
     /* the maximum request size to attempt to send to the server */
@@ -138,21 +105,21 @@ public class Sender implements Runnable {
                   int requestTimeoutMs,
                   long retryBackoffMs,
                   TransactionManager transactionManager) {
-        this.log = logContext.logger(Sender.class);
-        this.client = client;
-        this.accumulator = accumulator;
-        this.metadata = metadata;
+        this.log                   = logContext.logger(Sender.class);
+        this.client                = client;
+        this.accumulator           = accumulator;
+        this.metadata              = metadata;
         this.guaranteeMessageOrder = guaranteeMessageOrder;
-        this.maxRequestSize = maxRequestSize;
-        this.running = true;
-        this.acks = acks;
-        this.retries = retries;
-        this.time = time;
-        this.sensors = new SenderMetrics(metricsRegistry, metadata, client, time);
-        this.requestTimeoutMs = requestTimeoutMs;
-        this.retryBackoffMs = retryBackoffMs;
-        this.transactionManager = transactionManager;
-        this.inFlightBatches = new HashMap<>();
+        this.maxRequestSize        = maxRequestSize;
+        this.running               = true;
+        this.acks                  = acks;
+        this.retries               = retries;
+        this.time                  = time;
+        this.sensors               = new SenderMetrics(metricsRegistry, metadata, client, time);
+        this.requestTimeoutMs      = requestTimeoutMs;
+        this.retryBackoffMs        = retryBackoffMs;
+        this.transactionManager    = transactionManager;
+        this.inFlightBatches       = new HashMap<>();
     }
 
     public List<ProducerBatch> inFlightBatches(TopicPartition tp) {
@@ -175,14 +142,14 @@ public class Sender implements Runnable {
     }
 
     /**
-     *  Get the in-flight batches that has reached delivery timeout.
+     * Get the in-flight batches that has reached delivery timeout.
      */
     private List<ProducerBatch> getExpiredInflightBatches(long now) {
         List<ProducerBatch> expiredBatches = new ArrayList<>();
 
-        for (Iterator<Map.Entry<TopicPartition, List<ProducerBatch>>> batchIt = inFlightBatches.entrySet().iterator(); batchIt.hasNext();) {
-            Map.Entry<TopicPartition, List<ProducerBatch>> entry = batchIt.next();
-            List<ProducerBatch> partitionInFlightBatches = entry.getValue();
+        for (Iterator<Map.Entry<TopicPartition, List<ProducerBatch>>> batchIt = inFlightBatches.entrySet().iterator(); batchIt.hasNext(); ) {
+            Map.Entry<TopicPartition, List<ProducerBatch>> entry                    = batchIt.next();
+            List<ProducerBatch>                            partitionInFlightBatches = entry.getValue();
             if (partitionInFlightBatches != null) {
                 Iterator<ProducerBatch> iter = partitionInFlightBatches.iterator();
                 while (iter.hasNext()) {
@@ -196,7 +163,7 @@ public class Sender implements Runnable {
                             expiredBatches.add(batch);
                         } else {
                             throw new IllegalStateException(batch.topicPartition + " batch created at " +
-                                batch.createdMs + " gets unexpected final state " + batch.finalState());
+                                    batch.createdMs + " gets unexpected final state " + batch.finalState());
                         }
                     } else {
                         accumulator.maybeUpdateNextBatchExpiryTime(batch);
@@ -214,7 +181,7 @@ public class Sender implements Runnable {
     private void addToInflightBatches(List<ProducerBatch> batches) {
         for (ProducerBatch batch : batches) {
             List<ProducerBatch> inflightBatchList = inFlightBatches.computeIfAbsent(batch.topicPartition,
-                k -> new ArrayList<>());
+                    k -> new ArrayList<>());
             inflightBatchList.add(batch);
         }
     }
@@ -300,7 +267,6 @@ public class Sender implements Runnable {
 
     /**
      * Run a single iteration of sending
-     *
      */
     void runOnce() {
         if (transactionManager != null) {
@@ -336,7 +302,7 @@ public class Sender implements Runnable {
         }
 
         long currentTimeMs = time.milliseconds();
-        long pollTimeout = sendProducerData(currentTimeMs);
+        long pollTimeout   = sendProducerData(currentTimeMs);
         client.poll(pollTimeout, currentTimeMs);
     }
 
@@ -345,7 +311,7 @@ public class Sender implements Runnable {
     // instantiate the producer again.
     private boolean shouldHandleAuthorizationError(RuntimeException exception) {
         if (exception instanceof TransactionalIdAuthorizationException ||
-                        exception instanceof ClusterAuthorizationException) {
+                exception instanceof ClusterAuthorizationException) {
             transactionManager.failPendingRequests(new AuthenticationException(exception));
             maybeAbortBatches(exception);
             transactionManager.transitionToUninitialized(exception);
@@ -355,11 +321,14 @@ public class Sender implements Runnable {
     }
 
     private long sendProducerData(long now) {
+        // 1.元数据准备阶段
         MetadataSnapshot metadataSnapshot = metadata.fetchMetadataSnapshot();
         // get the list of partitions with data ready to send
+        // 获取待发送的分区列表
         RecordAccumulator.ReadyCheckResult result = this.accumulator.ready(metadataSnapshot, now);
 
         // if there are any partitions whose leaders are not known yet, force metadata update
+        // 如果有未知leader的分区，则强制更新元数据
         if (!result.unknownLeaderTopics.isEmpty()) {
             // The set of topics with unknown leader contains topics with leader election pending as well as
             // topics which may have expired. Add the topic again to metadata to ensure it is included
@@ -368,13 +337,14 @@ public class Sender implements Runnable {
                 this.metadata.add(topic, now);
 
             log.debug("Requesting metadata update due to unknown leader topics from the batched records: {}",
-                result.unknownLeaderTopics);
+                    result.unknownLeaderTopics);
             this.metadata.requestUpdate(false);
         }
 
         // remove any nodes we aren't ready to send to
-        Iterator<Node> iter = result.readyNodes.iterator();
-        long notReadyTimeout = Long.MAX_VALUE;
+        Iterator<Node> iter            = result.readyNodes.iterator();
+        long           notReadyTimeout = Long.MAX_VALUE;
+        // 过滤不可用节点
         while (iter.hasNext()) {
             Node node = iter.next();
             if (!this.client.ready(node, now)) {
@@ -392,6 +362,7 @@ public class Sender implements Runnable {
         }
 
         // create produce requests
+        // 创建批次处理
         Map<Integer, List<ProducerBatch>> batches = this.accumulator.drain(metadataSnapshot, result.readyNodes, this.maxRequestSize, now);
         addToInflightBatches(batches);
         if (guaranteeMessageOrder) {
@@ -401,10 +372,10 @@ public class Sender implements Runnable {
                     this.accumulator.mutePartition(batch.topicPartition);
             }
         }
-
+        // 处理过期批次
         accumulator.resetNextBatchExpiryTime();
         List<ProducerBatch> expiredInflightBatches = getExpiredInflightBatches(now);
-        List<ProducerBatch> expiredBatches = this.accumulator.expiredBatches(now);
+        List<ProducerBatch> expiredBatches         = this.accumulator.expiredBatches(now);
         expiredBatches.addAll(expiredInflightBatches);
 
         // Reset the producer id if an expired batch has previously been sent to the broker. Also update the metrics
@@ -414,7 +385,7 @@ public class Sender implements Runnable {
             log.trace("Expired {} batches in accumulator", expiredBatches.size());
         for (ProducerBatch expiredBatch : expiredBatches) {
             String errorMessage = "Expiring " + expiredBatch.recordCount + " record(s) for " + expiredBatch.topicPartition
-                + ":" + (now - expiredBatch.createdMs) + " ms has passed since batch creation";
+                    + ":" + (now - expiredBatch.createdMs) + " ms has passed since batch creation";
             failBatch(expiredBatch, new TimeoutException(errorMessage), false);
             if (transactionManager != null && expiredBatch.inRetry()) {
                 // This ensures that no new batches are drained until the current in flight batches are fully resolved.
@@ -439,6 +410,7 @@ public class Sender implements Runnable {
             // otherwise the select time will be the time difference between now and the metadata expiry time;
             pollTimeout = 0;
         }
+        // 发送请求
         sendProduceRequests(batches, now);
         return pollTimeout;
     }
@@ -464,7 +436,7 @@ public class Sender implements Runnable {
             return false;
 
         AbstractRequest.Builder<?> requestBuilder = nextRequestHandler.requestBuilder();
-        Node targetNode = null;
+        Node                       targetNode     = null;
         try {
             FindCoordinatorRequest.CoordinatorType coordinatorType = nextRequestHandler.coordinatorType();
             targetNode = coordinatorType != null ?
@@ -492,7 +464,7 @@ public class Sender implements Runnable {
 
             long currentTimeMs = time.milliseconds();
             ClientRequest clientRequest = client.newClientRequest(targetNode.idString(), requestBuilder, currentTimeMs,
-                true, requestTimeoutMs, nextRequestHandler);
+                    true, requestTimeoutMs, nextRequestHandler);
             log.debug("Sending transactional request {} to node {} with correlation ID {}", requestBuilder, targetNode, clientRequest.correlationId());
             client.send(clientRequest, currentTimeMs);
             transactionManager.setInFlightCorrelationId(clientRequest.correlationId());
@@ -567,16 +539,16 @@ public class Sender implements Runnable {
      */
     private void handleProduceResponse(ClientResponse response, Map<TopicPartition, ProducerBatch> batches, long now) {
         RequestHeader requestHeader = response.requestHeader();
-        int correlationId = requestHeader.correlationId();
+        int           correlationId = requestHeader.correlationId();
         if (response.wasTimedOut()) {
             log.trace("Cancelled request with header {} due to the last request to node {} timed out",
-                requestHeader, response.destination());
+                    requestHeader, response.destination());
             for (ProducerBatch batch : batches.values())
                 completeBatch(batch, new ProduceResponse.PartitionResponse(Errors.REQUEST_TIMED_OUT, String.format("Disconnected from node %s due to timeout", response.destination())),
                         correlationId, now, null);
         } else if (response.wasDisconnected()) {
             log.trace("Cancelled request with header {} due to node {} being disconnected",
-                requestHeader, response.destination());
+                    requestHeader, response.destination());
             for (ProducerBatch batch : batches.values())
                 completeBatch(batch, new ProduceResponse.PartitionResponse(Errors.NETWORK_EXCEPTION, String.format("Disconnected from node %s", response.destination())),
                         correlationId, now, null);
@@ -596,17 +568,17 @@ public class Sender implements Runnable {
                 Map<TopicPartition, Metadata.LeaderIdAndEpoch> partitionsWithUpdatedLeaderInfo = new HashMap<>();
                 produceResponse.data().responses().forEach(r -> r.partitionResponses().forEach(p -> {
                     // Version 13 drop topic name and add support to topic id. However, metadata can be used to map topic id to topic name.
-                    String topicName = metadata.topicNames().getOrDefault(r.topicId(), r.name());
-                    TopicPartition tp = new TopicPartition(topicName, p.index());
+                    String         topicName = metadata.topicNames().getOrDefault(r.topicId(), r.name());
+                    TopicPartition tp        = new TopicPartition(topicName, p.index());
                     ProduceResponse.PartitionResponse partResp = new ProduceResponse.PartitionResponse(
                             Errors.forCode(p.errorCode()),
                             p.baseOffset(),
                             p.logAppendTimeMs(),
                             p.logStartOffset(),
                             p.recordErrors()
-                                .stream()
-                                .map(e -> new ProduceResponse.RecordError(e.batchIndex(), e.batchIndexErrorMessage()))
-                                .collect(Collectors.toList()),
+                                    .stream()
+                                    .map(e -> new ProduceResponse.RecordError(e.batchIndex(), e.batchIndexErrorMessage()))
+                                    .collect(Collectors.toList()),
                             p.errorMessage(),
                             p.currentLeader());
                     ProducerBatch batch = batches.get(tp);
@@ -615,14 +587,14 @@ public class Sender implements Runnable {
 
                 if (!partitionsWithUpdatedLeaderInfo.isEmpty()) {
                     List<Node> leaderNodes = produceResponse.data().nodeEndpoints().stream()
-                        .map(e -> new Node(e.nodeId(), e.host(), e.port(), e.rack()))
-                        .filter(e -> !e.equals(Node.noNode()))
-                        .collect(
-                            Collectors.toList());
+                            .map(e -> new Node(e.nodeId(), e.host(), e.port(), e.rack()))
+                            .filter(e -> !e.equals(Node.noNode()))
+                            .collect(
+                                    Collectors.toList());
                     Set<TopicPartition> updatedPartitions = metadata.updatePartitionLeadership(partitionsWithUpdatedLeaderInfo, leaderNodes);
                     if (log.isTraceEnabled()) {
                         updatedPartitions.forEach(
-                            part -> log.debug("For {} leader was updated.", part)
+                                part -> log.debug("For {} leader was updated.", part)
                         );
                     }
                 }
@@ -640,10 +612,10 @@ public class Sender implements Runnable {
     /**
      * Complete or retry the given batch of records.
      *
-     * @param batch The record batch
-     * @param response The produce response
-     * @param correlationId The correlation id for the request
-     * @param now The current POSIX timestamp in milliseconds
+     * @param batch                           The record batch
+     * @param response                        The produce response
+     * @param correlationId                   The correlation id for the request
+     * @param now                             The current POSIX timestamp in milliseconds
      * @param partitionsWithUpdatedLeaderInfo This will be populated with partitions that have updated leader info.
      */
     private void completeBatch(ProducerBatch batch, ProduceResponse.PartitionResponse response, long correlationId,
@@ -655,11 +627,11 @@ public class Sender implements Runnable {
             // If the batch is too large, we split the batch and send the split batches again. We do not decrement
             // the retry attempts in this case.
             log.warn(
-                "Got error produce response in correlation id {} on topic-partition {}, splitting and retrying ({} attempts left). Error: {}",
-                correlationId,
-                batch.topicPartition,
-                this.retries - batch.attempts(),
-                formatErrMsg(response));
+                    "Got error produce response in correlation id {} on topic-partition {}, splitting and retrying ({} attempts left). Error: {}",
+                    correlationId,
+                    batch.topicPartition,
+                    this.retries - batch.attempts(),
+                    formatErrMsg(response));
             if (transactionManager != null)
                 transactionManager.removeInFlightBatch(batch);
             this.accumulator.splitAndReenqueue(batch);
@@ -668,11 +640,11 @@ public class Sender implements Runnable {
         } else if (error != Errors.NONE) {
             if (canRetry(batch, response, now)) {
                 log.warn(
-                    "Got error produce response with correlation id {} on topic-partition {}, retrying ({} attempts left). Error: {}",
-                    correlationId,
-                    batch.topicPartition,
-                    this.retries - batch.attempts() - 1,
-                    formatErrMsg(response));
+                        "Got error produce response with correlation id {} on topic-partition {}, retrying ({} attempts left). Error: {}",
+                        correlationId,
+                        batch.topicPartition,
+                        this.retries - batch.attempts() - 1,
+                        formatErrMsg(response));
                 reenqueueBatch(batch, now);
             } else if (error == Errors.DUPLICATE_SEQUENCE_NUMBER) {
                 // If we have received a duplicate sequence error, it means that the sequence number has advanced beyond
@@ -690,8 +662,8 @@ public class Sender implements Runnable {
             if (error.exception() instanceof InvalidMetadataException) {
                 if (error.exception() instanceof UnknownTopicOrPartitionException) {
                     log.warn("Received unknown topic or partition error in produce request on partition {}. The " +
-                            "topic-partition may not exist or the user may not have Describe access to it",
-                        batch.topicPartition);
+                                    "topic-partition may not exist or the user may not have Describe access to it",
+                            batch.topicPartition);
                 } else {
                     log.warn("Received invalid metadata error in produce request on partition {} due to {} Going " +
                             "to request metadata update now", batch.topicPartition, error.exception(response.errorMessage).toString());
@@ -699,9 +671,9 @@ public class Sender implements Runnable {
                 if (error.exception() instanceof NotLeaderOrFollowerException || error.exception() instanceof FencedLeaderEpochException) {
                     log.debug("For {}, received error {}, with leaderIdAndEpoch {}", batch.topicPartition, error, response.currentLeader);
                     if (partitionsWithUpdatedLeaderInfo != null
-                        && (response.currentLeader.leaderId() != -1 && response.currentLeader.leaderEpoch() != -1)) {
+                            && (response.currentLeader.leaderId() != -1 && response.currentLeader.leaderEpoch() != -1)) {
                         partitionsWithUpdatedLeaderInfo.put(batch.topicPartition, new Metadata.LeaderIdAndEpoch(
-                            Optional.of(response.currentLeader.leaderId()), Optional.of(response.currentLeader.leaderEpoch())));
+                                Optional.of(response.currentLeader.leaderId()), Optional.of(response.currentLeader.leaderEpoch())));
                     }
                 }
                 metadata.requestUpdate(false);
@@ -788,7 +760,7 @@ public class Sender implements Runnable {
                     // will be present in the response. To avoid confusion for the remaining records, we
                     // return a generic exception.
                     return new KafkaException("Failed to append record because it was part of a batch " +
-                        "which had one more more invalid records");
+                            "which had one more more invalid records");
                 }
             };
 
@@ -797,18 +769,18 @@ public class Sender implements Runnable {
     }
 
     private void failBatch(
-        ProducerBatch batch,
-        RuntimeException topLevelException,
-        boolean adjustSequenceNumbers
+            ProducerBatch batch,
+            RuntimeException topLevelException,
+            boolean adjustSequenceNumbers
     ) {
         failBatch(batch, topLevelException, batchIndex -> topLevelException, adjustSequenceNumbers);
     }
 
     private void failBatch(
-        ProducerBatch batch,
-        RuntimeException topLevelException,
-        Function<Integer, RuntimeException> recordExceptions,
-        boolean adjustSequenceNumbers
+            ProducerBatch batch,
+            RuntimeException topLevelException,
+            Function<Integer, RuntimeException> recordExceptions,
+            boolean adjustSequenceNumbers
     ) {
         this.sensors.recordErrors(batch.topicPartition.topic(), batch.recordCount);
 
@@ -833,11 +805,11 @@ public class Sender implements Runnable {
      */
     private boolean canRetry(ProducerBatch batch, ProduceResponse.PartitionResponse response, long now) {
         return !batch.hasReachedDeliveryTimeout(accumulator.getDeliveryTimeoutMs(), now) &&
-            batch.attempts() < this.retries &&
-            !batch.isDone() &&
-            (transactionManager == null ?
-                    response.error.exception() instanceof RetriableException :
-                    transactionManager.canRetry(response, batch));
+                batch.attempts() < this.retries &&
+                !batch.isDone() &&
+                (transactionManager == null ?
+                        response.error.exception() instanceof RetriableException :
+                        transactionManager.canRetry(response, batch));
     }
 
     /**
@@ -856,14 +828,14 @@ public class Sender implements Runnable {
             return;
 
         final Map<TopicPartition, ProducerBatch> recordsByPartition = new HashMap<>(batches.size());
-        Map<String, Uuid> topicIds = topicIdsForBatches(batches);
+        Map<String, Uuid>                        topicIds           = topicIdsForBatches(batches);
 
         ProduceRequestData.TopicProduceDataCollection tpd = new ProduceRequestData.TopicProduceDataCollection();
         for (ProducerBatch batch : batches) {
-            TopicPartition tp = batch.topicPartition;
-            MemoryRecords records = batch.records();
-            Uuid topicId = topicIds.get(tp.topic());
-            ProduceRequestData.TopicProduceData tpData = tpd.find(tp.topic(), topicId);
+            TopicPartition                      tp      = batch.topicPartition;
+            MemoryRecords                       records = batch.records();
+            Uuid                                topicId = topicIds.get(tp.topic());
+            ProduceRequestData.TopicProduceData tpData  = tpd.find(tp.topic(), topicId);
 
             if (tpData == null) {
                 tpData = new ProduceRequestData.TopicProduceData()
@@ -877,10 +849,10 @@ public class Sender implements Runnable {
             recordsByPartition.put(tp, batch);
         }
 
-        String transactionalId = null;
+        String  transactionalId         = null;
         boolean useTransactionV1Version = false;
         if (transactionManager != null && transactionManager.isTransactional()) {
-            transactionalId = transactionManager.transactionalId();
+            transactionalId         = transactionManager.transactionalId();
             useTransactionV1Version = !transactionManager.isTransactionV2Enabled();
         }
 
@@ -898,7 +870,7 @@ public class Sender implements Runnable {
         ClientRequest clientRequest = client.newClientRequest(nodeId, requestBuilder, now, acks != 0,
                 requestTimeoutMs, callback);
         client.send(clientRequest, now);
-        log.trace("Sent produce request to {}: {}", nodeId, requestBuilder);
+        log.info("Sent produce request to {}: {}", nodeId, requestBuilder);
     }
 
     private Map<String, Uuid> topicIdsForBatches(List<ProducerBatch> batches) {
@@ -928,21 +900,21 @@ public class Sender implements Runnable {
      * A collection of sensors for the sender
      */
     private static class SenderMetrics {
-        public final Sensor retrySensor;
-        public final Sensor errorSensor;
-        public final Sensor queueTimeSensor;
-        public final Sensor requestTimeSensor;
-        public final Sensor recordsPerRequestSensor;
-        public final Sensor batchSizeSensor;
-        public final Sensor compressionRateSensor;
-        public final Sensor maxRecordSizeSensor;
-        public final Sensor batchSplitSensor;
+        public final  Sensor                retrySensor;
+        public final  Sensor                errorSensor;
+        public final  Sensor                queueTimeSensor;
+        public final  Sensor                requestTimeSensor;
+        public final  Sensor                recordsPerRequestSensor;
+        public final  Sensor                batchSizeSensor;
+        public final  Sensor                compressionRateSensor;
+        public final  Sensor                maxRecordSizeSensor;
+        public final  Sensor                batchSplitSensor;
         private final SenderMetricsRegistry metrics;
-        private final Time time;
+        private final Time                  time;
 
         public SenderMetrics(SenderMetricsRegistry metrics, Metadata metadata, KafkaClient client, Time time) {
             this.metrics = metrics;
-            this.time = time;
+            this.time    = time;
 
             this.batchSizeSensor = metrics.sensor("batch-size");
             this.batchSizeSensor.add(metrics.batchSizeAvg, new Avg());
@@ -975,7 +947,7 @@ public class Sender implements Runnable {
 
             this.metrics.addMetric(metrics.requestsInFlight, (config, now) -> client.inFlightRequestCount());
             this.metrics.addMetric(metrics.metadataAge,
-                (config, now) -> (now - metadata.lastSuccessfulUpdate()) / 1000.0);
+                    (config, now) -> (now - metadata.lastSuccessfulUpdate()) / 1000.0);
 
             this.batchSplitSensor = metrics.sensor("batch-split-rate");
             this.batchSplitSensor.add(new Meter(metrics.batchSplitRate, metrics.batchSplitTotal));
@@ -985,35 +957,35 @@ public class Sender implements Runnable {
             // if one sensor of the metrics has been registered for the topic,
             // then all other sensors should have been registered; and vice versa
             String topicRecordsCountName = "topic." + topic + ".records-per-batch";
-            Sensor topicRecordCount = this.metrics.getSensor(topicRecordsCountName);
+            Sensor topicRecordCount      = this.metrics.getSensor(topicRecordsCountName);
             if (topicRecordCount == null) {
                 Map<String, String> metricTags = Collections.singletonMap("topic", topic);
 
                 topicRecordCount = this.metrics.sensor(topicRecordsCountName);
-                MetricName rateMetricName = this.metrics.topicRecordSendRate(metricTags);
+                MetricName rateMetricName  = this.metrics.topicRecordSendRate(metricTags);
                 MetricName totalMetricName = this.metrics.topicRecordSendTotal(metricTags);
                 topicRecordCount.add(new Meter(rateMetricName, totalMetricName));
 
                 String topicByteRateName = "topic." + topic + ".bytes";
-                Sensor topicByteRate = this.metrics.sensor(topicByteRateName);
-                rateMetricName = this.metrics.topicByteRate(metricTags);
+                Sensor topicByteRate     = this.metrics.sensor(topicByteRateName);
+                rateMetricName  = this.metrics.topicByteRate(metricTags);
                 totalMetricName = this.metrics.topicByteTotal(metricTags);
                 topicByteRate.add(new Meter(rateMetricName, totalMetricName));
 
-                String topicCompressionRateName = "topic." + topic + ".compression-rate";
-                Sensor topicCompressionRate = this.metrics.sensor(topicCompressionRateName);
-                MetricName m = this.metrics.topicCompressionRate(metricTags);
+                String     topicCompressionRateName = "topic." + topic + ".compression-rate";
+                Sensor     topicCompressionRate     = this.metrics.sensor(topicCompressionRateName);
+                MetricName m                        = this.metrics.topicCompressionRate(metricTags);
                 topicCompressionRate.add(m, new Avg());
 
-                String topicRetryName = "topic." + topic + ".record-retries";
+                String topicRetryName   = "topic." + topic + ".record-retries";
                 Sensor topicRetrySensor = this.metrics.sensor(topicRetryName);
-                rateMetricName = this.metrics.topicRecordRetryRate(metricTags);
+                rateMetricName  = this.metrics.topicRecordRetryRate(metricTags);
                 totalMetricName = this.metrics.topicRecordRetryTotal(metricTags);
                 topicRetrySensor.add(new Meter(rateMetricName, totalMetricName));
 
-                String topicErrorName = "topic." + topic + ".record-errors";
+                String topicErrorName   = "topic." + topic + ".record-errors";
                 Sensor topicErrorSensor = this.metrics.sensor(topicErrorName);
-                rateMetricName = this.metrics.topicRecordErrorRate(metricTags);
+                rateMetricName  = this.metrics.topicRecordErrorRate(metricTags);
                 totalMetricName = this.metrics.topicRecordErrorTotal(metricTags);
                 topicErrorSensor.add(new Meter(rateMetricName, totalMetricName));
             }
@@ -1030,17 +1002,17 @@ public class Sender implements Runnable {
 
                     // per-topic record send rate
                     String topicRecordsCountName = "topic." + topic + ".records-per-batch";
-                    Sensor topicRecordCount = Objects.requireNonNull(this.metrics.getSensor(topicRecordsCountName));
+                    Sensor topicRecordCount      = Objects.requireNonNull(this.metrics.getSensor(topicRecordsCountName));
                     topicRecordCount.record(batch.recordCount);
 
                     // per-topic bytes send rate
                     String topicByteRateName = "topic." + topic + ".bytes";
-                    Sensor topicByteRate = Objects.requireNonNull(this.metrics.getSensor(topicByteRateName));
+                    Sensor topicByteRate     = Objects.requireNonNull(this.metrics.getSensor(topicByteRateName));
                     topicByteRate.record(batch.estimatedSizeInBytes());
 
                     // per-topic compression rate
                     String topicCompressionRateName = "topic." + topic + ".compression-rate";
-                    Sensor topicCompressionRate = Objects.requireNonNull(this.metrics.getSensor(topicCompressionRateName));
+                    Sensor topicCompressionRate     = Objects.requireNonNull(this.metrics.getSensor(topicCompressionRateName));
                     topicCompressionRate.record(batch.compressionRatio());
 
                     // global metrics
@@ -1057,7 +1029,7 @@ public class Sender implements Runnable {
         public void recordRetries(String topic, int count) {
             long now = time.milliseconds();
             this.retrySensor.record(count, now);
-            String topicRetryName = "topic." + topic + ".record-retries";
+            String topicRetryName   = "topic." + topic + ".record-retries";
             Sensor topicRetrySensor = this.metrics.getSensor(topicRetryName);
             if (topicRetrySensor != null)
                 topicRetrySensor.record(count, now);
@@ -1066,7 +1038,7 @@ public class Sender implements Runnable {
         public void recordErrors(String topic, int count) {
             long now = time.milliseconds();
             this.errorSensor.record(count, now);
-            String topicErrorName = "topic." + topic + ".record-errors";
+            String topicErrorName   = "topic." + topic + ".record-errors";
             Sensor topicErrorSensor = this.metrics.getSensor(topicErrorName);
             if (topicErrorSensor != null)
                 topicErrorSensor.record(count, now);
@@ -1076,7 +1048,7 @@ public class Sender implements Runnable {
             long now = time.milliseconds();
             this.requestTimeSensor.record(latency, now);
             if (!node.isEmpty()) {
-                String nodeTimeName = "node-" + node + ".latency";
+                String nodeTimeName    = "node-" + node + ".latency";
                 Sensor nodeRequestTime = this.metrics.getSensor(nodeTimeName);
                 if (nodeRequestTime != null)
                     nodeRequestTime.record(latency, now);

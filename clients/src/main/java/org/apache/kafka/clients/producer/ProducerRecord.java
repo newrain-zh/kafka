@@ -48,12 +48,12 @@ import java.util.Objects;
  */
 public class ProducerRecord<K, V> {
 
-    private final String topic;
-    private final Integer partition;
-    private final Headers headers;
-    private final K key;
-    private final V value;
-    private final Long timestamp;
+    private final String topic; // 主题
+    private final Integer partition; // 分区号
+    private final Headers headers; // 头信息
+    private final K key;  // 自定义key
+    private final V value; // 消息内容
+    private final Long timestamp; // 时间戳
 
     /**
      * Creates a record with a specified timestamp to be sent to a specified topic and partition

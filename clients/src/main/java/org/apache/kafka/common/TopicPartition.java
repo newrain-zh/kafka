@@ -25,13 +25,13 @@ import java.util.Objects;
 public final class TopicPartition implements Serializable {
     private static final long serialVersionUID = -613627415771699627L;
 
-    private int hash = 0;
-    private final int partition;
-    private final String topic;
+    private       int    hash = 0;
+    private final int    partition; // 分区号
+    private final String topic; //  主题名
 
     public TopicPartition(String topic, int partition) {
         this.partition = partition;
-        this.topic = topic;
+        this.topic     = topic;
     }
 
     public int partition() {
@@ -46,9 +46,9 @@ public final class TopicPartition implements Serializable {
     public int hashCode() {
         if (hash != 0)
             return hash;
-        final int prime = 31;
-        int result = prime + partition;
-        result = prime * result + Objects.hashCode(topic);
+        final int prime  = 31;
+        int       result = prime + partition;
+        result    = prime * result + Objects.hashCode(topic);
         this.hash = result;
         return result;
     }

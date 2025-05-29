@@ -435,6 +435,7 @@ public final class LegacyRecord {
 
     // Write a record to the buffer, if the record's compression type is none, then
     // its value payload should be already compressed with the specified type
+    // 将记录写入缓冲区，如果记录的压缩类型为 none，则其值 payload 应已使用指定类型进行压缩
     private static void write(DataOutputStream out,
                               byte magic,
                               long crc,
