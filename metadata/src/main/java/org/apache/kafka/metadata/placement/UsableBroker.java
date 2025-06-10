@@ -25,6 +25,7 @@ import java.util.Optional;
 
 /**
  * A broker where a replica can be placed.
+ * 可以放置副本的 broker。
  */
 @InterfaceStability.Unstable
 public class UsableBroker {
@@ -32,11 +33,14 @@ public class UsableBroker {
 
     private final Optional<String> rack;
 
-    private final boolean fenced;
+    // HINTS
+    // 隔离 Fenced :Broker 被标记为不可接受新分区的 Leader角色
+    // 未隔离  Unfenced :  Broker 被标记为接受新分区的 Leader角色
+    private final boolean fenced; // 隔离状态标记
 
     public UsableBroker(int id, Optional<String> rack, boolean fenced) {
-        this.id = id;
-        this.rack = rack;
+        this.id     = id;
+        this.rack   = rack;
         this.fenced = fenced;
     }
 
@@ -60,17 +64,11 @@ public class UsableBroker {
 
     @Override
     public int hashCode() {
-        return Objects.hash(id,
-            rack,
-            fenced);
+        return Objects.hash(id, rack, fenced);
     }
 
     @Override
     public String toString() {
-        return "UsableBroker" +
-            "(id=" + id +
-            ", rack=" + rack +
-            ", fenced=" + fenced +
-            ")";
+        return "UsableBroker" + "(id=" + id + ", rack=" + rack + ", fenced=" + fenced + ")";
     }
 }

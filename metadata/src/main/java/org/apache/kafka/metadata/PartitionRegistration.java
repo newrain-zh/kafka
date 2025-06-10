@@ -36,21 +36,24 @@ import java.util.Objects;
 import static org.apache.kafka.metadata.LeaderConstants.NO_LEADER_CHANGE;
 
 
+/*
+   PartitionRegistration Kafka元数据管理模块中分装分区核心数据状态的核心数据结构，负责维护分区副本布局、领导权变状态以及变更历史
+ */
 public class PartitionRegistration {
 
     /**
      * A builder class which creates a PartitionRegistration.
      */
     public static class Builder {
-        private int[] replicas;
-        private Uuid[] directories;
-        private int[] isr;
+        private int[] replicas; // 分区所有副本的 Broker Id
+        private Uuid[] directories; // 记录每个副本所在的磁盘目录 UUID
+        private int[] isr; // In-sync replicas
         private int[] removingReplicas = Replicas.NONE;
         private int[] addingReplicas = Replicas.NONE;
         private int[] elr = Replicas.NONE;
         private int[] lastKnownElr = Replicas.NONE;
-        private Integer leader;
-        private LeaderRecoveryState leaderRecoveryState;
+        private Integer leader; // Leader broker id
+        private LeaderRecoveryState leaderRecoveryState; // 表示leader的恢复状态
         private Integer leaderEpoch;
         private Integer partitionEpoch;
 

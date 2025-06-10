@@ -24,12 +24,16 @@ import org.apache.kafka.common.errors.InvalidReplicationFactorException;
 /**
  * The interface which a Kafka replica placement policy must implement.
  */
+/*
+    HINTS Kafka元数据管理模块的核心接口，用于动态决定 Kafka 分区副本在 Broker集群中中的分布策略。
+ */
 @InterfaceStability.Unstable
 public interface ReplicaPlacer {
     /**
      * Create a new replica placement.
+     * 创建新的副本放置
      *
-     * @param placement     What we're trying to place.
+     * @param placement     What zwe're trying to place.
      * @param cluster       A description of the cluster we're trying to place in.
      *
      * @return              A topic assignment.
@@ -37,7 +41,7 @@ public interface ReplicaPlacer {
      * @throws InvalidReplicationFactorException    If too many replicas were requested.
      */
     TopicAssignment place(
-        PlacementSpec placement,
-        ClusterDescriber cluster
+        PlacementSpec placement,// 分区防止的规格要求（如副本数量、分区数 ）
+        ClusterDescriber cluster // 集群状态描述 （如 Broker列表、机架信息）
     ) throws InvalidReplicationFactorException;
 }

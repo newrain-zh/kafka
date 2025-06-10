@@ -143,6 +143,7 @@ public abstract class KafkaFuture<T> implements Future<T> {
     /**
      * If not already completed, sets the value returned by get() and related methods to the given
      * value.
+     * 如果尚未完成，请将get（）返回的值和相关方法设置为给定值。
      */
     protected abstract boolean complete(T newValue);
 

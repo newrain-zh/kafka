@@ -26,13 +26,17 @@ import java.util.Objects;
  * This class is immutable. It's internal state does not change.
  */
 public class TopicAssignment {
-    private final List<PartitionAssignment> assignments;
+
+    //  每个分区的副本分配方案
+    // 数组的索引对应分区的编号
+    private final List<PartitionAssignment> assignments; // 存储所有分区的副本分配方案
 
     public TopicAssignment(List<PartitionAssignment> assignments) {
         this.assignments = List.copyOf(assignments);
     }
 
     /**
+     * 每个分区的副本分配，其中列表中的索引对应于不同的分区。
      * @return The replica assignment for each partition, where the index in the list corresponds to different partition.
      */
     public List<PartitionAssignment> assignments() {

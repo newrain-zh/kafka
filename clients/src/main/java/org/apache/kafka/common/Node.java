@@ -20,17 +20,18 @@ import java.util.Objects;
 
 /**
  * Information about a Kafka node
+ * Kafka 节点信息
  */
 public class Node {
 
     private static final Node NO_NODE = new Node(-1, "", -1);
 
-    private final int id;
+    private final int id; // 节点id
     private final String idString;
     private final String host;
     private final int port;
-    private final String rack;
-    private final boolean isFenced;
+    private final String rack; // 机架信息
+    private final boolean isFenced; // 隔离状态
 
     // Cache hashCode as it is called in performance sensitive parts of the code (e.g. RecordAccumulator.ready)
     private Integer hash;

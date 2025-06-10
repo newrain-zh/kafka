@@ -85,6 +85,7 @@ import scala.jdk.javaapi.OptionConverters
 
 /**
  * Logic to handle the various Kafka requests
+ * 用于处理各种 Kafka 请求的逻辑
  */
 class KafkaApis(val requestChannel: RequestChannel,
                 val forwardingManager: ForwardingManager,
@@ -146,6 +147,7 @@ class KafkaApis(val requestChannel: RequestChannel,
 
   /**
    * Top-level method that handles all requests and multiplexes to the right api
+   * 处理所有请求并多路复用到正确 API 的顶级方法
    */
   override def handle(request: RequestChannel.Request, requestLocal: RequestLocal): Unit = {
     def handleError(e: Throwable): Unit = {
@@ -180,7 +182,7 @@ class KafkaApis(val requestChannel: RequestChannel,
         case ApiKeys.LIST_GROUPS => handleListGroupsRequest(request).exceptionally(handleError)
         case ApiKeys.SASL_HANDSHAKE => handleSaslHandshakeRequest(request)
         case ApiKeys.API_VERSIONS => handleApiVersionsRequest(request)
-        case ApiKeys.CREATE_TOPICS => forwardToController(request)
+        case ApiKeys.CREATE_TOPICS => forwardToController(request) // HINTS 创建主题请求
         case ApiKeys.DELETE_TOPICS => forwardToController(request)
         case ApiKeys.DELETE_RECORDS => handleDeleteRecordsRequest(request)
         case ApiKeys.INIT_PRODUCER_ID => handleInitProducerIdRequest(request, requestLocal)

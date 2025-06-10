@@ -155,6 +155,7 @@ public class AdminMetadataManager {
 
     /**
      * The current AdminMetadataManager state.
+     * 当前 AdminMetadataManager 状态。
      */
     enum State {
         QUIESCENT,

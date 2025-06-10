@@ -24,6 +24,7 @@ import java.util.Objects;
 
 /**
  * The partition assignment.
+ * 分区分配
  *
  * The assignment is represented as a list of integers and {@link Uuid}s
  * where each integer is the replica ID, and each Uuid is the ID of the
@@ -32,8 +33,8 @@ import java.util.Objects;
  */
 public class PartitionAssignment {
 
-    private final List<Integer> replicas;
-    private final List<Uuid> directories;
+    private final List<Integer> replicas; // 副本分配的 Broker Id 列表
+    private final List<Uuid> directories; // 目录分配
 
     public PartitionAssignment(List<Integer> replicas, DefaultDirProvider defaultDirProvider) {
         this.replicas = List.copyOf(replicas);

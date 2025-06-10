@@ -63,6 +63,7 @@ public class Sender implements Runnable {
     private final int maxRequestSize;
 
     /* the number of acknowledgements to request from the server */
+    // 服务器请求的确认数量
     private final short acks;
 
     /* the number of times to retry a failed request before giving up */

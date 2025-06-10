@@ -170,6 +170,15 @@ import static org.apache.kafka.controller.QuorumController.ControllerOperationFl
  * The QuorumController uses the "metadata.version" feature flag as a mechanism to control
  * the usage of new log record schemas. Starting with 3.3, this version must be set before
  * the controller can fully initialize.
+ *
+ * QuorumController实现了Kraft（Kafka Raft Metadata）模式控制器的主要逻辑。
+ * 元数据log的领导者的节点成为活动控制器。所有其他节点都处于待机模式。备用控制器无法创建新的元数据日志条目。
+ * 他们只是重播当前活动控制器创建的元数据日志条目。 QuorumController是单线程。单个事件处理程序线程执行大多数操作。
+ * 这避免了需要进行复杂的锁定。控制器向世界暴露了异步，基于期货的API。这反映了以下事实：控制器可能在任何给定点进行多个操作。
+ * 在操作结果持久到元数据日志之前，与每个操作相关的未来将无法完成。
+ * QuorumController使用“ Metadata.version”功能标志作为控制新日志记录模式使用的机制。从3.3开始，必须在控制器完全初始化之前设置此版本。
+ *
+ * QuorumController 是 KRaft模式下的核心控制器实现类，承担集群元数据管理、协调与决策的核心职责。
  */
 public final class QuorumController implements Controller {
     /**
@@ -1766,6 +1775,7 @@ public final class QuorumController implements Controller {
     }
 
     @Override
+    // HINTS 接受创建主题的请求
     public CompletableFuture<CreateTopicsResponseData> createTopics(
         ControllerRequestContext context,
         CreateTopicsRequestData request, Set<String> describable

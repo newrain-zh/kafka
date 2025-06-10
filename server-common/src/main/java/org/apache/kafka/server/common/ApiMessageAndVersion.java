@@ -24,9 +24,12 @@ import java.util.Objects;
 /**
  * An ApiMessage and an associated version.
  */
+/*
+    HINTS Kafka元数据管理中的协议消息版本封装器，其核心作用是为不同版本的元数据变更提供同一的结构化表示。
+ */
 public class ApiMessageAndVersion {
-    private final ApiMessage message;
-    private final short version;
+    private final ApiMessage message; // 具体的消息记录
+    private final short version; // 表示消息对应的协议版本
 
     public ApiMessageAndVersion(ApiMessage message, short version) {
         this.message = message;

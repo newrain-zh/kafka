@@ -237,7 +237,7 @@ public class ConfigurationControlManager {
     }
 
     ControllerResult<ApiError> incrementalAlterConfig(
-        ConfigResource configResource,
+        ConfigResource configResource, // 目标资源
         Map<String, Entry<OpType, String>> keyToOps,
         boolean newlyCreatedResource
     ) {

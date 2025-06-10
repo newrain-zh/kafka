@@ -22,8 +22,8 @@ Configuration:
       - name: "kafka.logs.dir"
         value: "."
       - name: "logPattern"
-#        value: "[%d] %p %m (%c)%n"
-        value: "%highlight{[%d] %p %m (%c:%L)}{ERROR=red, WARN=yellow, INFO=green, DEBUG=cyan}%n"
+        value: "[%d] %p %m (%c)%n"
+#        value: "%highlight{[%d] %p %m (%c:%L)}{ERROR=red, WARN=yellow, INFO=green, DEBUG=cyan}%n"
 
   # Appenders configuration
   # See: https://logging.apache.org/log4j/2.x/manual/appenders.html

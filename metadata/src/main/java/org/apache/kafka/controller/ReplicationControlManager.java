@@ -618,6 +618,7 @@ public class ReplicationControlManager {
         return numRemoved;
     }
 
+    // HINTS 创建主题核心方法
     ControllerResult<CreateTopicsResponseData> createTopics(
         ControllerRequestContext context,
         CreateTopicsRequestData request,
@@ -629,6 +630,7 @@ public class ReplicationControlManager {
         validateTotalNumberOfPartitions(request, defaultNumPartitions);
 
         // Check the topic names.
+        // 检查主题名称
         validateNewTopicNames(topicErrors, request.topics(), topicsWithCollisionChars);
 
         // Identify topics that already exist and mark them with the appropriate error
@@ -638,9 +640,9 @@ public class ReplicationControlManager {
 
         // Verify that the configurations for the new topics are OK, and figure out what
         // configurations should be created.
+        // 验证新主题的配置是否可以，并弄清楚应该创建哪些配置。
         Map<ConfigResource, Map<String, Entry<OpType, String>>> configChanges =
             computeConfigChanges(topicErrors, request.topics());
-
         // Try to create whatever topics are needed.
         Map<String, CreatableTopicResult> successes = new HashMap<>();
         for (CreatableTopic topic : request.topics()) {
@@ -673,6 +675,7 @@ public class ReplicationControlManager {
         }
 
         // Create responses for all topics.
+        // 为所有主题创建响应。
         CreateTopicsResponseData data = new CreateTopicsResponseData();
         StringBuilder resultsBuilder = new StringBuilder();
         String resultsPrefix = "";
@@ -702,13 +705,16 @@ public class ReplicationControlManager {
             return ControllerResult.atomicOf(records, data);
         }
     }
-
-    private ApiError createTopic(ControllerRequestContext context,
-                                 CreatableTopic topic,
-                                 List<ApiMessageAndVersion> records,
-                                 Map<String, CreatableTopicResult> successes,
-                                 List<ApiMessageAndVersion> configRecords,
-                                 boolean authorizedToReturnConfigs) {
+    /*
+       HINTS 创建 Topic的核心方法
+     */
+    private ApiError createTopic(ControllerRequestContext context, //  请求上下文
+                                 CreatableTopic topic, // 待创建的 Topic的配置信息
+                                 List<ApiMessageAndVersion> records, // 用于收集生产的元数据记录
+                                 Map<String, CreatableTopicResult> successes, // 成功创建的 Topic的结果集
+                                 List<ApiMessageAndVersion> configRecords, // Topic配置变更信息
+                                 boolean authorizedToReturnConfigs) { // 是否有权限返回配置信息
+        //  转换创建的配置信息
         Map<String, String> creationConfigs = translateCreationConfigs(topic.configs());
         Map<Integer, PartitionRegistration> newParts = new HashMap<>();
         if (!topic.assignments().isEmpty()) {
@@ -722,34 +728,43 @@ public class ReplicationControlManager {
                     "A manual partition assignment was specified, but numPartitions " +
                         "was not set to -1.");
             }
+            // 遍历每个分区的的副本分配
             OptionalInt replicationFactor = OptionalInt.empty();
             for (CreatableReplicaAssignment assignment : topic.assignments()) {
+                // 校验分区索引是否重复
                 if (newParts.containsKey(assignment.partitionIndex())) {
                     return new ApiError(Errors.INVALID_REPLICA_ASSIGNMENT,
                         "Found multiple manual partition assignments for partition " +
                             assignment.partitionIndex());
                 }
+                // 构建分区分配对象并校验
                 PartitionAssignment partitionAssignment = new PartitionAssignment(assignment.brokerIds(), clusterDescriber);
                 validateManualPartitionAssignment(partitionAssignment, replicationFactor);
                 replicationFactor = OptionalInt.of(assignment.brokerIds().size());
+                // 过滤活跃Broker作为 ISR
                 List<Integer> isr = assignment.brokerIds().stream().
                     filter(clusterControl::isActive).toList();
-                if (isr.isEmpty()) {
+                if (isr.isEmpty()) { // 无可用 ISR 拒绝
                     return new ApiError(Errors.INVALID_REPLICA_ASSIGNMENT,
                         "All brokers specified in the manual partition assignment for " +
                         "partition " + assignment.partitionIndex() + " are fenced or in controlled shutdown.");
                 }
+                // 构建分区注册信息
                 newParts.put(
                     assignment.partitionIndex(),
                     buildPartitionRegistration(partitionAssignment, isr)
                 );
             }
+            //  检查分区索引是否连续
             for (int i = 0; i < newParts.size(); i++) {
                 if (!newParts.containsKey(i)) {
+                    // partitions should be a consecutive 0-based integer sequence
+                    // 分区编号必须连续从 0 开始
                     return new ApiError(Errors.INVALID_REPLICA_ASSIGNMENT,
                             "partitions should be a consecutive 0-based integer sequence");
                 }
             }
+            // 应用创建主题策略校验
             ApiError error = maybeCheckCreateTopicPolicy(() -> {
                 Map<Integer, List<Integer>> assignments = new HashMap<>();
                 newParts.forEach((key, value) -> assignments.put(key, Replicas.toList(value.replicas)));
@@ -758,9 +773,13 @@ public class ReplicationControlManager {
             });
             if (error.isFailure()) return error;
         } else if (topic.replicationFactor() < -1 || topic.replicationFactor() == 0) {
+            // Replication factor must be larger than 0, or -1 to use the default value
+            // 副本因子必须大大于 0 或 使用默认值 -1
             return new ApiError(Errors.INVALID_REPLICATION_FACTOR,
                 "Replication factor must be larger than 0, or -1 to use the default value.");
         } else if (topic.numPartitions() < -1 || topic.numPartitions() == 0) {
+            //  Number of partitions was set to an invalid non-positive value.
+            // 分区数必须为正值或 使用默认值-1
             return new ApiError(Errors.INVALID_PARTITIONS,
                 "Number of partitions was set to an invalid non-positive value.");
         } else {
@@ -769,6 +788,7 @@ public class ReplicationControlManager {
             short replicationFactor = topic.replicationFactor() == -1 ?
                 defaultReplicationFactor : topic.replicationFactor();
             try {
+                // 生成分区分配策略
                 TopicAssignment topicAssignment = clusterControl.replicaPlacer().place(new PlacementSpec(
                     0,
                     numPartitions,
@@ -802,12 +822,22 @@ public class ReplicationControlManager {
         }
         int numPartitions = newParts.size();
         try {
+            // QUESTION 对客户端的分区变更请求进行速率限制
+            /*
+                # 默认客户端每小时最多1000个分区变更
+                controller.quota.client.id.default=1000/3600
+                # 滑动窗口数（11个窗口）
+                controller.quota.window.num=11
+                # 每个窗口时长（3600秒）
+                controller.quota.window.size.seconds=3600
+             */
             context.applyPartitionChangeQuota(numPartitions); // check controller mutation quota
         } catch (ThrottlingQuotaExceededException e) {
             log.debug("Topic creation of {} partitions not allowed because quota is violated. Delay time: {}",
                 numPartitions, e.throttleTimeMs());
             return ApiError.fromThrowable(e);
         }
+        // 填充元数据
         Uuid topicId = Uuid.randomUuid();
         CreatableTopicResult result = new CreatableTopicResult().
             setName(topic.name()).

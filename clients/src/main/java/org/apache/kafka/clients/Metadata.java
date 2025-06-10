@@ -125,6 +125,7 @@ public class Metadata implements Closeable {
 
     /**
      * Get the current cluster info without blocking
+     * 获取当前的群集信息而无需阻止
      */
     public Cluster fetch() {
         return metadataSnapshot.cluster();
