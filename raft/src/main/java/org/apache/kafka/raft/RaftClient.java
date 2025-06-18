@@ -141,7 +141,10 @@ public interface RaftClient<T> extends AutoCloseable {
      * this method will throw an {@link NotLeaderException} to indicate the leader
      * to resign its leadership. The state machine is expected to discard all
      * uncommitted entries after observing an epoch change.
-     *
+     *  准备要附加到日志的记录列表。此方法不会将任何记录写入日志。要让 KRaft 实现将记录写入日志，必须调用 {@code schedulePreparedAppend} 方法。
+     *  无法保证附加的记录将写入日志并最终提交。但是，可以保证，如果提交了任何记录，则所有记录都将提交。
+     *  如果提供的当前领导 epoch 与当前 epoch 不匹配，当状态机尚未观察到 epoch 变化时，
+     *  这是可能的，那么此方法将抛出 {@link NotLeaderException} 来指示领导辞去其领导职务。状态机应在观察到 epoch 更改后丢弃所有未提交的条目。
      * @param epoch the current leader epoch
      * @param records the list of records to append
      * @return the expected offset of the last record

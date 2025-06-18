@@ -22,7 +22,7 @@ import java.util.Objects;
 
 /**
  * The topic assignment.
- *
+ * 主题的分配方案
  * This class is immutable. It's internal state does not change.
  */
 public class TopicAssignment {
@@ -37,6 +37,7 @@ public class TopicAssignment {
 
     /**
      * 每个分区的副本分配，其中列表中的索引对应于不同的分区。
+     *
      * @return The replica assignment for each partition, where the index in the list corresponds to different partition.
      */
     public List<PartitionAssignment> assignments() {
@@ -57,7 +58,7 @@ public class TopicAssignment {
     @Override
     public String toString() {
         return "TopicAssignment" +
-            "(assignments=" + assignments +
-            ")";
+                "(assignments=" + assignments +
+                ")";
     }
 }

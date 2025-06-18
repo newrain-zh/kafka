@@ -61,6 +61,7 @@ import scala.jdk.OptionConverters.RichOption
 
 /**
  * A Kafka controller that runs in KRaft (Kafka Raft) mode.
+ * 以 KRaft （Kafka Raft） 模式运行的 Kafka 控制器。
  */
 class ControllerServer(
   val sharedServer: SharedServer,

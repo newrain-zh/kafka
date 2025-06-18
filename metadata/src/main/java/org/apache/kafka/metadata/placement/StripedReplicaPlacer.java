@@ -20,14 +20,7 @@ package org.apache.kafka.metadata.placement;
 import org.apache.kafka.common.errors.InvalidReplicationFactorException;
 import org.apache.kafka.metadata.OptionalStringComparator;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Random;
+import java.util.*;
 
 
 /**
@@ -150,7 +143,7 @@ public class StripedReplicaPlacer implements ReplicaPlacer {
      * A list of brokers that we can iterate through.
      */
     static class BrokerList {
-        static final BrokerList EMPTY = new BrokerList();
+        static final  BrokerList    EMPTY   = new BrokerList();
         private final List<Integer> brokers = new ArrayList<>(0);
 
         /**
@@ -177,8 +170,9 @@ public class StripedReplicaPlacer implements ReplicaPlacer {
 
         /**
          * Initialize this broker list by sorting it and randomizing the start offset.
+         * 通过对 broker 列表进行排序并随机化 start offset 来初始化此 broker 列表。
          *
-         * @param random    The random number generator.
+         * @param random The random number generator.
          */
         void initialize(Random random) {
             if (!brokers.isEmpty()) {
@@ -195,7 +189,7 @@ public class StripedReplicaPlacer implements ReplicaPlacer {
         }
 
         /**
-         * @return          The number of brokers in this list.
+         * @return The number of brokers in this list.
          */
         int size() {
             return brokers.size();
@@ -205,16 +199,15 @@ public class StripedReplicaPlacer implements ReplicaPlacer {
          * Get the next broker in this list, or -1 if there are no more elements to be
          * returned.
          *
-         * @param epoch     The current iteration epoch.
-         *
-         * @return          The broker ID, or -1 if there are no more brokers to be
-         *                  returned in this epoch.
+         * @param epoch The current iteration epoch.
+         * @return The broker ID, or -1 if there are no more brokers to be
+         * returned in this epoch.
          */
         int next(int epoch) {
             if (brokers.isEmpty()) return -1;
             if (this.epoch != epoch) {
-                this.epoch = epoch;
-                this.index = 0;
+                this.epoch  = epoch;
+                this.index  = 0;
                 this.offset = (offset + 1) % brokers.size();
             }
             if (index >= brokers.size()) return -1;
@@ -229,13 +222,13 @@ public class StripedReplicaPlacer implements ReplicaPlacer {
      * 群集中的机架，其中包含代理。
      */
     static class Rack {
-        private final BrokerList fenced = new BrokerList();
+        private final BrokerList fenced   = new BrokerList();
         private final BrokerList unfenced = new BrokerList();
 
         /**
          * Initialize this rack.
          *
-         * @param random    The random number generator.
+         * @param random The random number generator.
          */
         void initialize(Random random) {
             fenced.initialize(random);
@@ -258,11 +251,11 @@ public class StripedReplicaPlacer implements ReplicaPlacer {
         /**
          * Get the next unfenced broker in this rack, or -1 if there are no more brokers
          * to be returned.
+         * 获取此机架中的下一个未受防护的代理，如果没有更多要返回的代理，则为 -1
          *
-         * @param epoch     The current iteration epoch.
-         *
-         * @return          The broker ID, or -1 if there are no more brokers to be
-         *                  returned in this epoch.
+         * @param epoch The current iteration epoch.
+         * @return The broker ID, or -1 if there are no more brokers to be
+         * returned in this epoch.
          */
         int nextUnfenced(int epoch) {
             return unfenced.next(epoch);
@@ -272,10 +265,9 @@ public class StripedReplicaPlacer implements ReplicaPlacer {
          * Get the next broker in this rack, or -1 if there are no more brokers to be
          * returned.
          *
-         * @param epoch     The current iteration epoch.
-         *
-         * @return          The broker ID, or -1 if there are no more brokers to be
-         *                  returned in this epoch.
+         * @param epoch The current iteration epoch.
+         * @return The broker ID, or -1 if there are no more brokers to be
+         * returned in this epoch.
          */
         int next(int epoch) {
             int result = unfenced.next(epoch);
@@ -286,6 +278,7 @@ public class StripedReplicaPlacer implements ReplicaPlacer {
 
     /**
      * A list of racks that we can iterate through.
+     * 我们可以迭代的机架列表。
      */
     static class RackList {
         /**
@@ -302,6 +295,7 @@ public class StripedReplicaPlacer implements ReplicaPlacer {
          * The names of all the racks in the cluster.
          * Racks which have at least one unfenced broker come first (in sorted order),
          * followed by racks which have only fenced brokers (also in sorted order).
+         * 群集中所有机架的名称。至少有一个未受防护的代理的机架排在第一位（按排序顺序），其次是只有受防护的代理的机架（也按排序顺序）。
          */
         private final List<Optional<String>> rackNames = new ArrayList<>();
 
@@ -322,35 +316,45 @@ public class StripedReplicaPlacer implements ReplicaPlacer {
 
         /**
          * The offset we use to determine which rack is returned first.
+         * 我们用于确定首先返回哪个机架的偏移量。
+         * 0 表示第一个机架，1 表示第二个机架，依此类推。
+         * offset是随机获取的，避免固定起始位置导致分配倾斜
+         * - 不同的 Topic创建时起始机架不同
+         * - 相同的 Topic 多次创建时分配方案不同
          */
         private int offset;
 
-        RackList(Random random, Iterator<UsableBroker> iterator) {
+        // StripedReplicaPlacer 内部类 RackList 内部类
+        // 构建机架列表
+        RackList(Random random,
+                 Iterator<UsableBroker> iterator // 可放置副本的 Broker 从集群状态中获取的
+        ) {
             this.random = random;
             int numTotalBrokersCount = 0, numUnfencedBrokersCount = 0;
             while (iterator.hasNext()) {
                 UsableBroker broker = iterator.next();
-                Rack rack = racks.get(broker.rack());
-                if (rack == null) {
-                    rackNames.add(broker.rack());
+                Rack         rack   = racks.get(broker.rack());
+                if (rack == null) { // 如果没有机架信息
+                    rackNames.add(broker.rack()); // 这里添加的是一个 Optional.empty()
                     rack = new Rack();
-                    racks.put(broker.rack(), rack);
+                    racks.put(broker.rack(), rack); // 没有机架信息 所有 Broker存入同一个 Rack对象，Optional.empty()
                 }
-                if (broker.fenced()) {
+                if (broker.fenced()) { // 隔离的
                     rack.fenced().add(broker.id());
-                } else {
+                } else { // 非分离的
                     numUnfencedBrokersCount++;
                     rack.unfenced().add(broker.id());
                 }
                 numTotalBrokersCount++;
             }
+            // 每个机架中的 Broker列表（隔离、未隔离的）随机化排列
             for (Rack rack : racks.values()) {
                 rack.initialize(random);
             }
-            this.rackNames.sort(OptionalStringComparator.INSTANCE);
-            this.numTotalBrokers = numTotalBrokersCount;
-            this.numUnfencedBrokers = numUnfencedBrokersCount;
-            this.offset = rackNames.isEmpty() ? 0 : random.nextInt(rackNames.size());
+            this.rackNames.sort(OptionalStringComparator.INSTANCE); // 根据机架名称排序
+            this.numTotalBrokers    = numTotalBrokersCount; //  集群的总 Broker数（非隔离的、隔离的）
+            this.numUnfencedBrokers = numUnfencedBrokersCount; // 集群的非隔离的 Broker数
+            this.offset             = rackNames.isEmpty() ? 0 : random.nextInt(rackNames.size()); // 随机化起始偏移量
         }
 
         int numTotalBrokers() {
@@ -366,11 +370,17 @@ public class StripedReplicaPlacer implements ReplicaPlacer {
             return rackNames;
         }
 
-        // 分区副本分配策略
+        /**
+         * 单个分区副本分配策略
+         *
+         * @param replicationFactor 副本因子
+         * @return
+         */
         List<Integer> place(int replicationFactor) {
-            throwInvalidReplicationFactorIfNonPositive(replicationFactor);
-            throwInvalidReplicationFactorIfTooFewBrokers(replicationFactor, numTotalBrokers());
-            throwInvalidReplicationFactorIfZero(numUnfencedBrokers());
+            // 前置检测
+            throwInvalidReplicationFactorIfNonPositive(replicationFactor); // 副本因子是否为正数
+            throwInvalidReplicationFactorIfTooFewBrokers(replicationFactor, numTotalBrokers()); // 检查副本因子是否超过集群的总 Broker数
+            throwInvalidReplicationFactorIfZero(numUnfencedBrokers()); // 检查是否存在未隔了的 Broker
             // If we have returned as many assignments as there are unfenced brokers in
             // the cluster, shuffle the rack list and broker lists to try to avoid
             // repeating the same assignments again.
@@ -378,18 +388,22 @@ public class StripedReplicaPlacer implements ReplicaPlacer {
             // 如果我们返回的分配数量与集群中未受防护的代理数量一样多，请随机排列机架列表和代理列表，以避免再次重复相同的分配。
             // 但是不要重置单个未受防护的 broker 的迭代 epoch —— 否则我们将永远循环
             if (epoch == numUnfencedBrokers && numUnfencedBrokers > 1) {
+                // 防重复机制
+                //  随机重排机架顺序
+                //  随机重排每个机架内的 Broker列表
                 shuffle();
-                epoch = 0;
+                epoch = 0; // 重置迭代 epoch
             }
-            if (offset == rackNames.size()) {
-                offset = 0;
+            if (offset == rackNames.size()) { // 确保机架偏移量始终在有效范围内
+                offset = 0; // 达到机架数时归零
             }
             List<Integer> brokers = new ArrayList<>(replicationFactor);
+            // --- Leader 副本选择 start ---
             int firstRackIndex = offset;
             while (true) {
-                Optional<String> name = rackNames.get(firstRackIndex);
-                Rack rack = racks.get(name);
-                int result = rack.nextUnfenced(epoch);
+                Optional<String> name   = rackNames.get(firstRackIndex);
+                Rack             rack   = racks.get(name);
+                int              result = rack.nextUnfenced(epoch); // 未隔离的Broker列表中随机选择一个 Broker
                 if (result >= 0) {
                     brokers.add(result);
                     break;
@@ -399,6 +413,8 @@ public class StripedReplicaPlacer implements ReplicaPlacer {
                     firstRackIndex = 0;
                 }
             }
+            // --- Leader 副本选择 end
+            // --- Follower 副本选择 start ---
             int rackIndex = offset;
             for (int replica = 1; replica < replicationFactor; replica++) {
                 int result = -1;
@@ -407,7 +423,7 @@ public class StripedReplicaPlacer implements ReplicaPlacer {
                         firstRackIndex = -1;
                     } else {
                         Optional<String> rackName = rackNames.get(rackIndex);
-                        Rack rack = racks.get(rackName);
+                        Rack             rack     = racks.get(rackName);
                         result = rack.next(epoch);
                     }
                     rackIndex++;
@@ -417,8 +433,9 @@ public class StripedReplicaPlacer implements ReplicaPlacer {
                 } while (result < 0);
                 brokers.add(result);
             }
-            epoch++;
-            offset++;
+            // --- Follower 副本选择 end ---
+            epoch++; // 更新 Broker轮询状态
+            offset++; // 更新分区起始机架
             return brokers;
         }
 
@@ -444,7 +461,7 @@ public class StripedReplicaPlacer implements ReplicaPlacer {
     }
 
     private static void throwInvalidReplicationFactorIfTooFewBrokers(int replicationFactor, int numTotalBrokers) {
-        if (replicationFactor > numTotalBrokers) {
+        if (replicationFactor > numTotalBrokers) { // 复制因子不能超过Broker数量
             throw new InvalidReplicationFactorException("The target replication factor " +
                     "of " + replicationFactor + " cannot be reached because only " +
                     numTotalBrokers + " broker(s) are registered.");
@@ -458,9 +475,10 @@ public class StripedReplicaPlacer implements ReplicaPlacer {
     }
 
     @Override
+    // StripeReplicaPlacer
     public TopicAssignment place(
-        PlacementSpec placement,
-        ClusterDescriber cluster
+            PlacementSpec placement, // 包含主题的分区数量和副本因子
+            ClusterDescriber cluster // 提供集群的 Broker元数据（机架信息、隔离状态）
     ) throws InvalidReplicationFactorException {
         // cluster.usableBrokers() 获取集群中所有可用的 Broker (包含机架信息、隔离状态)
         //  将 Broker 按机架进行分布
@@ -471,16 +489,16 @@ public class StripedReplicaPlacer implements ReplicaPlacer {
         throwInvalidReplicationFactorIfNonPositive(placement.numReplicas()); // 副本数必须为正数 > 0
         throwInvalidReplicationFactorIfZero(rackList.numUnfencedBrokers()); // 集群内没有未隔离的 Broker
         throwInvalidReplicationFactorIfTooFewBrokers(placement.numReplicas(), // 副本数不能超过总 Broker数
-            rackList.numTotalBrokers());
+                rackList.numTotalBrokers());
         // 初始化分配容器
         List<List<Integer>> placements = new ArrayList<>(placement.numPartitions());
-        // 生成分区分配策略
+        // 遍历分区数，生成分区列表
         for (int partition = 0; partition < placement.numPartitions(); partition++) {
             placements.add(rackList.place(placement.numReplicas()));
         }
         // 封装结果
         return new TopicAssignment(
-            placements.stream().map(replicas -> new PartitionAssignment(replicas, cluster)).toList()
+                placements.stream().map(replicas -> new PartitionAssignment(replicas, cluster)).toList()
         );
     }
 }

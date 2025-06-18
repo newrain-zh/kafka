@@ -33,15 +33,12 @@ public interface ReplicaPlacer {
      * Create a new replica placement.
      * 创建新的副本放置
      *
-     * @param placement     What zwe're trying to place.
-     * @param cluster       A description of the cluster we're trying to place in.
+     * @param placement     What zwe're trying to place.  分区防止的规格要求（如副本数量、分区数 ）
+     * @param cluster       A description of the cluster we're trying to place in. 集群状态描述 （如 Broker列表、机架信息）
      *
      * @return              A topic assignment.
      *
      * @throws InvalidReplicationFactorException    If too many replicas were requested.
      */
-    TopicAssignment place(
-        PlacementSpec placement,// 分区防止的规格要求（如副本数量、分区数 ）
-        ClusterDescriber cluster // 集群状态描述 （如 Broker列表、机架信息）
-    ) throws InvalidReplicationFactorException;
+    TopicAssignment place(PlacementSpec placement, ClusterDescriber cluster) throws InvalidReplicationFactorException;
 }

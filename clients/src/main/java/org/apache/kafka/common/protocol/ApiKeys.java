@@ -40,6 +40,7 @@ import static org.apache.kafka.common.protocol.types.Type.RECORDS;
 
 /**
  * Identifiers for all the Kafka APIs
+ * 所有 Kafka API 的标识符
  */
 public enum ApiKeys {
     PRODUCE(ApiMessageType.PRODUCE),

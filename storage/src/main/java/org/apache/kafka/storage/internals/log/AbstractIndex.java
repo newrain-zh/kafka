@@ -398,6 +398,7 @@ public abstract class AbstractIndex implements Closeable {
 
     /**
      * Forcefully free the buffer's mmap.
+     * 强制释放缓冲区的 mmap。
      */
     // Visible for testing
     protected void forceUnmap() throws IOException {

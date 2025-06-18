@@ -65,6 +65,7 @@ trait ForwardingManager {
 
   /**
    * Forward given request to the active controller.
+   * 将给定的请求转发到活动控制器。
    *
    * @param requestContext      The request context of the original envelope request.
    * @param requestBufferCopy   The request buffer we want to send. This should not be the original
@@ -128,7 +129,7 @@ class ForwardingManagerImpl(
     requestToString: () => String,
     responseCallback: Option[AbstractResponse] => Unit
   ): Unit = {
-    val envelopeRequest = ForwardingManager.buildEnvelopeRequest(requestContext, requestBufferCopy)
+    val envelopeRequest = ForwardingManager.buildEnvelopeRequest(requestContext, requestBufferCopy) // 构建封装请求
     val requestCreationTimeMs = TimeUnit.NANOSECONDS.toMillis(requestCreationNs)
 
     class ForwardingResponseHandler extends ControllerRequestCompletionHandler {

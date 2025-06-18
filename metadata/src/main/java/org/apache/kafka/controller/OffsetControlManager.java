@@ -296,6 +296,7 @@ class OffsetControlManager {
     /**
      * Called by the active controller after it has invoked scheduleAtomicAppend to schedule some
      * records to be written.
+     * 由活动控制器在调用 scheduleAtomicAppend 以计划写入一些记录后调用。
      *
      * @param lastOffset The offset of the last record that was written.
      */
@@ -310,6 +311,8 @@ class OffsetControlManager {
         // time when scheduling a write. This is good enough because this is called right after
         // the records were given to the KRAft client for appending and the default append linger
         // for KRaft is 25ms.
+        // 这并不是真正的 append 时间戳。KRaft 客户端在计划写入时不会公开 append 时间。
+        // 这已经足够好了，因为在将记录提供给 KRAft 客户端进行追加后，会立即调用此函数，并且 KRaft 的默认追加延迟时间为 25 毫秒。
         metrics.setLastAppliedRecordTimestamp(time.milliseconds());
     }
 

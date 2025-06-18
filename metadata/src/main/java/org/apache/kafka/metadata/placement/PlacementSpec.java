@@ -27,11 +27,11 @@ import java.util.Objects;
  */
 @InterfaceStability.Unstable
 public class PlacementSpec {
-    private final int startPartition;
+    private final int startPartition; // 起始分区索引号
 
-    private final int numPartitions;
+    private final int numPartitions; // 分区数量
 
-    private final short numReplicas;
+    private final short numReplicas; // 副本因子（复制因子）
 
     public PlacementSpec(
         int startPartition,

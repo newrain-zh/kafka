@@ -102,6 +102,7 @@ public class BatchAccumulator<T> implements Closeable {
 
     /**
      * Append to the accumulator.
+     * 附加到累加器。
      *
      * @param epoch the leader epoch to append at
      * @param records the records to append
@@ -415,6 +416,7 @@ public class BatchAccumulator<T> implements Closeable {
             }
             // Reset the timer to a large value. The linger clock will begin
             // ticking after the next append.
+            // 将计时器重置为较大的值。linger clock 将在下一次 append 后开始滴答作响。
             lingerTimer.reset(Long.MAX_VALUE);
             drainStatus = DrainStatus.FINISHED;
         }

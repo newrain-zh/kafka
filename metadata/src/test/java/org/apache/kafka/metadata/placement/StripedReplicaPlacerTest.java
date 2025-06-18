@@ -65,6 +65,7 @@ public class StripedReplicaPlacerTest {
     /**
      * Test that we perform striped replica placement as expected, and don't use the
      * fenced replica if we don't have to.
+     * 测试我们是否按预期执行条带化副本放置，如果不需要，请不要使用受防护的副本。
      */
     @Test
     public void testAvoidFencedReplicaIfPossibleOnSingleRack() {

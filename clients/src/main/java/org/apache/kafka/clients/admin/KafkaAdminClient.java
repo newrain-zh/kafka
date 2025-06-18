@@ -577,11 +577,13 @@ public class KafkaAdminClient extends AdminClient {
     }
 
     /**
+     * KafkaAdminClient
      * Provides the controller node.
      * 提供 Controller 节点
      * 使用 ControllerNodeProvider 确保请求发送到 Kafka 集群的 Controller 节点。
      */
     private class ControllerNodeProvider implements NodeProvider {
+
         private final boolean supportsUseControllers;
 
         ControllerNodeProvider(boolean supportsUseControllers) {
@@ -591,8 +593,8 @@ public class KafkaAdminClient extends AdminClient {
         ControllerNodeProvider() {
             this.supportsUseControllers = false;
         }
-
         @Override
+        // 通过元数据获取 Controller 节点，如果未获取到重置元数据状态为UPDATE_REQUESTED
         public Node provide() {
             if (metadataManager.isReady() &&
                     (metadataManager.controller() != null)) {
@@ -1602,6 +1604,7 @@ public class KafkaAdminClient extends AdminClient {
         return new CreateTopicsResult(new HashMap<>(topicFutures));
     }
 
+    // KafkaAdminClient
     private Call getCreateTopicsCall(final CreateTopicsOptions options,
                                      final Map<String, KafkaFutureImpl<TopicMetadataAndConfig>> futures,
                                      final CreatableTopicCollection topics,

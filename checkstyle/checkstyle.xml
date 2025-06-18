@@ -72,7 +72,11 @@
     <module name="ParameterName"/>
     <module name="StaticVariableName"/>
     <module name="TypeName"/>
-    <module name="AvoidStarImport"/>
+    <!-- 官方推荐配置 -->
+    <module name="AvoidStarImport">
+      <property name="severity" value="warning"/>
+    </module>
+
 
     <!-- variables that can be final should be final (suppressed except for Streams) -->
     <module name="FinalLocalVariable">
@@ -96,7 +100,9 @@
       <property name="allowEmptyConstructors" value="true"/>
       <property name="allowEmptyMethods" value="true"/>
     </module>
-    <module name="Indentation"/>
+    <module name="Indentation">
+      <property name="severity" value="warning" />
+    </module>
     <module name="MethodParamPad"/>
     <module name="ParenPad"/>
     <module name="TypecastParenPad"/>

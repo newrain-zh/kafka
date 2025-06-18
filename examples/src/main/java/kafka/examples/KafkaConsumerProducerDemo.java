@@ -39,13 +39,13 @@ public class KafkaConsumerProducerDemo {
         try {
             if (args.length == 0) {
                 Utils.printHelp("This example takes 2 parameters (i.e. 10000 sync):%n" +
-                    "- records: total number of records to send (required)%n" +
-                    "- mode: pass 'sync' to send records synchronously (optional)");
+                        "- records: total number of records to send (required)%n" +
+                        "- mode: pass 'sync' to send records synchronously (optional)");
                 return;
             }
 
-            int numRecords = Integer.parseInt(args[0]);
-            boolean isAsync = args.length == 1 || !args[1].trim().equalsIgnoreCase("sync");
+            int     numRecords = Integer.parseInt(args[0]);
+            boolean isAsync    = args.length == 1 || !args[1].trim().equalsIgnoreCase("sync");
 
             // stage 1: clean any topics left from previous runs
             Utils.recreateTopics(KafkaProperties.BOOTSTRAP_SERVERS, 3, TOPIC_NAME);
@@ -53,17 +53,17 @@ public class KafkaConsumerProducerDemo {
 
             // stage 2: produce records to topic1
             Producer producerThread = new Producer(
-                "producer", KafkaProperties.BOOTSTRAP_SERVERS, TOPIC_NAME, isAsync, null, false, numRecords, -1, latch);
+                    "producer", KafkaProperties.BOOTSTRAP_SERVERS, TOPIC_NAME, isAsync, null, false, numRecords, -1, latch);
             producerThread.start();
 
             // stage 3: consume records from topic1
             Consumer consumerThread = new Consumer(
-                "consumer", KafkaProperties.BOOTSTRAP_SERVERS, TOPIC_NAME, GROUP_NAME, Optional.empty(), false, numRecords, latch);
+                    "consumer", KafkaProperties.BOOTSTRAP_SERVERS, TOPIC_NAME, GROUP_NAME, Optional.empty(), false, numRecords, latch);
             consumerThread.start();
 
             if (!latch.await(5, TimeUnit.MINUTES)) {
                 Utils.printErr("Timeout after 5 minutes waiting for termination");
-//                producerThread.shutdown();
+                producerThread.shutdown();
                 consumerThread.shutdown();
             }
         } catch (Throwable e) {

@@ -112,6 +112,7 @@ public abstract class AbstractRequest implements AbstractRequestResponse {
 
     /**
      * Serializes header and body without prefixing with size (unlike `toSend`, which does include a size prefix).
+     * 序列化标头和正文，不带 size 前缀（与 'toSend' 不同，它确实包含 size 前缀）。
      */
     public final ByteBuffer serializeWithHeader(RequestHeader header) {
         if (header.apiKey() != apiKey) {

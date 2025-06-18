@@ -747,6 +747,7 @@ public final class QuorumController implements Controller {
          * Once we've passed the records to the Raft layer, we will invoke this function
          * with the end offset at which those records were placed.  If there were no
          * records to write, we'll just pass the last write offset.
+         * 一旦我们将记录传递到 Raft 层，我们将使用放置这些记录的结束偏移量调用此函数。如果没有要写入的记录，我们将只传递最后一个写入偏移量。
          */
         default void processBatchEndOffset(long offset) {
         }
@@ -754,6 +755,7 @@ public final class QuorumController implements Controller {
 
     /**
      * A controller event that modifies the controller state.
+     * 修改控制器状态的控制器事件。
      */
     class ControllerWriteEvent<T> implements EventQueue.Event, DeferredEvent {
         private final String name;
@@ -797,6 +799,7 @@ public final class QuorumController implements Controller {
                 // If the operation did not return any records, then it was actually just
                 // a read after all, and not a read + write.  However, this read was done
                 // from the latest in-memory state, which might contain uncommitted data.
+                // 如果作没有返回任何记录，那么它实际上毕竟只是一次读取，而不是一次读取 + 写入。但是，此读取是从最新的内存中状态完成的，该状态可能包含未提交的数据。
                 OptionalLong maybeOffset = deferredEventQueue.highestPendingOffset();
                 if (maybeOffset.isEmpty()) {
                     // If the purgatory is empty, there are no pending operations and no
@@ -815,11 +818,13 @@ public final class QuorumController implements Controller {
             } else {
                 // Pass the records to the Raft layer. This will start the process of committing
                 // them to the log.
+                // 将记录传递给 Raft 层。这将启动将它们提交到日志的过程。
                 long offset = appendRecords(log, result, maxRecordsPerBatch,
                     records -> {
                         // Start by trying to apply the record to our in-memory state. This should always
                         // succeed; if it does not, that's a fatal error. It is important to do this before
                         // scheduling the record for Raft replication.
+                        // 首先尝试将记录应用于我们的 in-memory 状态。这应该总是成功的;如果不是，那就是一个致命错误。在为 Raft 复制计划记录之前执行此作非常重要。
                         int recordIndex = 0;
                         long lastOffset = raftClient.prepareAppend(controllerEpoch, records);
                         long baseOffset = lastOffset - records.size() + 1;
@@ -901,6 +906,8 @@ public final class QuorumController implements Controller {
                 // In general, we create atomic batches when it is important to commit "all, or
                 // nothing". They are limited in size and must only be used when the batch size
                 // is bounded.
+                // 如果必须以原子方式写出结果，请检查它是否太大。一般来说，当提交 “all， or nothing” 很重要时，我们会创建 atomic batch。
+                // 它们的大小有限，并且只能在批处理大小有界时使用。
                 if (records.size() > maxRecordsPerBatch) {
                     throw new IllegalStateException("Attempted to atomically commit " +
                             records.size() + " records, but maxRecordsPerBatch is " +
@@ -952,10 +959,10 @@ public final class QuorumController implements Controller {
     }
 
     <T> CompletableFuture<T> appendWriteEvent(
-        String name,
-        OptionalLong deadlineNs,
-        ControllerWriteOperation<T> op,
-        EnumSet<ControllerOperationFlag> flags
+        String name, // 时间描述性名称（用于日志追踪）
+        OptionalLong deadlineNs, // 可选戒指时间（纳秒级，超时触发队列丢弃）
+        ControllerWriteOperation<T> op, // 操作逻辑（生成元数据记录和结果）
+        EnumSet<ControllerOperationFlag> flags // 操作表示（如是否更新队列时间指标）
     ) {
         ControllerWriteEvent<T> event = new ControllerWriteEvent<>(name, op, flags);
         if (deadlineNs.isPresent()) {
@@ -1194,10 +1201,11 @@ public final class QuorumController implements Controller {
 
     /**
      * Apply the metadata record to its corresponding in-memory state(s)
+     * 将元数据记录应用于其相应的内存中状态
      *
      * @param message           The metadata record
-     * @param snapshotId        The snapshotId if this record is from a snapshot
-     * @param offset            The offset of the record
+     * @param snapshotId        The snapshotId if this record is from a snapshot snapshotId（如果此记录来自快照）
+     * @param offset            The offset of the record 记录的偏移量
      */
     private void replay(ApiMessage message, Optional<OffsetAndEpoch> snapshotId, long offset) {
         if (log.isTraceEnabled()) {
@@ -1271,6 +1279,9 @@ public final class QuorumController implements Controller {
                 break;
             case NO_OP_RECORD:
                 // NoOpRecord is an empty record and doesn't need to be replayed
+                // NoOpRecord 是空记录，不需要重放
+                // QUESTION: Why is this case needed?
+                // 待确认是否和提交阻塞或提交丢失导致 Cluster 状态不一致，与我用 golang实现 Raft算法提交日志时出现的情况一样。
                 break;
             case ZK_MIGRATION_STATE_RECORD:
                 // In 4.0, although migration is no longer supported and ZK has been removed from Kafka,
@@ -1325,6 +1336,7 @@ public final class QuorumController implements Controller {
     /**
      * The single-threaded queue that processes all of our events.
      * It also processes timeouts.
+     * 处理我们所有事件的单线程队列。它还处理超时。
      */
     private final KafkaEventQueue queue;
 
@@ -1625,7 +1637,9 @@ public final class QuorumController implements Controller {
      * Register the writeNoOpRecord task.
      *
      * This task periodically writes a NoOpRecord to the metadata log.
+     * 注册 writeNoOpRecord 任务。此任务会定期将 NoOpRecord 写入元数据日志。
      *
+     * 在 R
      * @param maxIdleIntervalNs     The period at which to write the NoOpRecord.
      */
     private void registerWriteNoOpRecord(long maxIdleIntervalNs) {
@@ -1777,9 +1791,9 @@ public final class QuorumController implements Controller {
     @Override
     // HINTS 接受创建主题的请求
     public CompletableFuture<CreateTopicsResponseData> createTopics(
-        ControllerRequestContext context,
-        CreateTopicsRequestData request, Set<String> describable
-    ) {
+        ControllerRequestContext context, // 请求上下文（含超时时间、权限等 ）
+        CreateTopicsRequestData request, // 创建主题请求
+        Set<String> describable) { // 需在响应中返回详细信息的主题明集合
         if (request.topics().isEmpty()) {
             return CompletableFuture.completedFuture(new CreateTopicsResponseData());
         }
