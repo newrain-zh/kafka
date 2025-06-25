@@ -112,6 +112,7 @@ public class Consumer extends Thread implements ConsumerRebalanceListener {
             Utils.printErr("Unhandled exception");
             e.printStackTrace();
         }
+        System.out.println("消费消息");
         Utils.printOut("Fetched %d records", numRecords - remainingRecords);
         shutdown();
     }

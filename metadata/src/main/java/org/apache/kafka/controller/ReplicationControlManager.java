@@ -276,11 +276,17 @@ public class ReplicationControlManager {
      * sets in this map should only have a size of 1. However, if the cluster was
      * upgraded from a version prior to KAFKA-13743, it may be possible to have more
      * values here, since colliding topic names will be "grandfathered in."
+     * 如果主题名称中的句点替换为下划线时，主题名称与现有主题发生冲突，我们会尝试阻止创建主题。这样做的原因是，
+     * 某些每个主题的指标确实将句点替换为下划线，因此否则会不明确。<p> 此映射从规范化的主题名称到一组主题名称。
+     * 因此，如果我们有两个名为 foo.bar 和 foo_bar 的主题，则此映射将包含从 foo_bar 到包含 foo.bar 和 foo_bar 的集合的映射。
+     * <p> 由于我们拒绝会发生冲突的主题创建，因此在正常情况下，此 map 中的集合的大小应仅为 1。
+     * 但是，如果集群是从 KAFKA-13743 之前的版本升级而来的，则此处可能会有更多值，因为冲突的主题名称将被“祖父化”。
      */
     private final TimelineHashMap<String, TimelineHashSet<String>> topicsWithCollisionChars;
 
     /**
      * Maps topic UUIDs to structures containing topic information, including partitions.
+     * 将主题 UUID 映射到包含主题信息（包括分区）的结构。
      */
     private final TimelineHashMap<Uuid, TopicControlInfo> topics;
 
@@ -345,11 +351,13 @@ public class ReplicationControlManager {
         this.directoriesToPartitions  = new TimelineHashMap<>(snapshotRegistry, 0);
     }
 
+    // 元数据变更
     public void replay(TopicRecord record) {
         Uuid existingUuid = topicsByName.put(record.name(), record.topicId());
         if (existingUuid != null) {
             // We don't currently support sending a second TopicRecord for the same topic name...
             // unless, of course, there is a RemoveTopicRecord in between.
+            // 我们目前不支持为同一主题名称发送第二个 TopicRecord...当然，除非中间有 RemoveTopicRecord。
             if (existingUuid.equals(record.topicId())) {
                 throw new RuntimeException("Found duplicate TopicRecord for " + record.name() +
                         " with topic ID " + record.topicId());

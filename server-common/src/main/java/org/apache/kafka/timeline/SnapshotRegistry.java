@@ -33,6 +33,8 @@ import java.util.stream.Collectors;
  * be registered here, so that they can be reverted to the expected state when desired.
  * Because the registry only keeps a weak reference to each timeline data structure, it does not
  * prevent them from being garbage collected.
+ * 包含时间线数据结构快照的注册表。所有时间轴数据结构都必须在此处注册，以便在需要时可以将其恢复到预期状态。
+ * 由于注册表仅保留对每个时间线数据结构的弱引用，因此它不会阻止它们被垃圾回收。
  */
 public class SnapshotRegistry {
     public static final long LATEST_EPOCH = Long.MAX_VALUE;

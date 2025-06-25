@@ -96,6 +96,9 @@ public class FileLogInputStream implements LogInputStream<FileLogInputStream.Fil
      * Log entry backed by an underlying FileChannel. This allows iteration over the record batches
      * without needing to read the record data into memory until it is needed. The downside
      * is that entries will generally no longer be readable when the underlying channel is closed.
+     *
+     * 日志条目由底层Filechannel支持。这允许在记录批处理上进行迭代，而无需将记录数据读为内存，
+     * 直到需要为止。不利的一面是，当关闭基础通道时，条目通常将不再可读。
      */
     public abstract static class FileChannelRecordBatch extends AbstractRecordBatch {
         protected final long offset;

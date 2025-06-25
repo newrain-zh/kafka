@@ -3536,6 +3536,7 @@ public final class KafkaRaftClient<T> implements RaftClient<T> {
         return append(epoch, records);
     }
 
+    // 将客户端记录追加到 Raft 日志。
     private long append(int epoch, List<T> records) {
         if (!isInitialized()) {
             throw new NotLeaderException("Append failed because the replica is not the current leader");

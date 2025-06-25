@@ -29,6 +29,9 @@ import java.util.OptionalLong;
  * a batch consisted always of a single record if no compression was enabled, but could contain
  * many records otherwise. Newer versions (magic versions 2 and above) will generally contain many records
  * regardless of compression.
+ *
+ * 记录批次是记录的容器。在旧版本的记录格式（版本 0 和 1）中，
+ * 如果未启用压缩，则批处理始终由单个记录组成，否则可以包含许多记录。较新版本（magic 版本 2 及更高版本）通常包含许多记录，无论压缩如何。
  */
 public interface RecordBatch extends Iterable<Record> {
 

@@ -113,6 +113,8 @@ public class Producer extends Thread {
         // key and value are just byte arrays, so we need to set appropriate serializers
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, IntegerSerializer.class);
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        props.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384);  // 16KB批次
+        props.put(ProducerConfig.LINGER_MS_CONFIG, 1000);     // 等待100ms组批
         if (transactionTimeoutMs > 0) {
             // max time before the transaction coordinator proactively aborts the ongoing transaction
             props.put(ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, transactionTimeoutMs);

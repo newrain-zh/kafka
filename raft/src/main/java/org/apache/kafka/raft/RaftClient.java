@@ -163,6 +163,7 @@ public interface RaftClient<T> extends AutoCloseable {
      *
      * Any batches previously prepared for append with {@code prepareAppend(int List)} will be
      * scheduled to get appended to the log.
+     * 计划将所有准备好的批次附加到日志中。之前准备使用 {@code prepareAppend（int List）} 进行追加的任何批处理都将被安排到日志中。
      *
      * @throws NotLeaderException if we are not the current leader
      */

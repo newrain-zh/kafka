@@ -36,6 +36,7 @@ public interface Record {
 
     /**
      * Get the sequence number assigned by the producer.
+     * 获取生产者分配的序列号。
      * @return the sequence number
      */
     int sequence();

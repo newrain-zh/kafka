@@ -786,6 +786,8 @@ public final class QuorumController implements Controller {
         public void run() throws Exception {
             // Deferred events set the DOES_NOT_UPDATE_QUEUE_TIME flag to prevent incorrectly
             // including their deferral time in the event queue time.
+            // 延迟事件会设置DOES_NOT_UPDATE_QUEUE_TIME标志，以防止在事件队列时间中错误地包含其延迟时间。
+            // 记录事件开始处理事件
             startProcessingTimeNs = OptionalLong.of(
                 updateEventStartMetricsAndGetTime(flags.contains(DOES_NOT_UPDATE_QUEUE_TIME) ?
                     OptionalLong.empty() : OptionalLong.of(eventCreatedTimeNs)));
@@ -826,6 +828,7 @@ public final class QuorumController implements Controller {
                         // scheduling the record for Raft replication.
                         // 首先尝试将记录应用于我们的 in-memory 状态。这应该总是成功的;如果不是，那就是一个致命错误。在为 Raft 复制计划记录之前执行此作非常重要。
                         int recordIndex = 0;
+                        // 将消息序列化并暂存到内存批次中
                         long lastOffset = raftClient.prepareAppend(controllerEpoch, records);
                         long baseOffset = lastOffset - records.size() + 1;
                         for (ApiMessageAndVersion message : records) {
@@ -855,6 +858,7 @@ public final class QuorumController implements Controller {
             }
 
             // Remember the latest offset and future if it is not already completed
+            // 记住最新的 offset 和 future（如果尚未完成）
             if (!future.isDone()) {
                 deferredEventQueue.add(resultAndOffset.offset(), this);
             }
@@ -887,7 +891,7 @@ public final class QuorumController implements Controller {
      *
      * @param log                   The log4j logger.
      * @param result                The controller result we are writing out.
-     * @param maxRecordsPerBatch    The maximum number of records to allow in a batch.
+     * @param maxRecordsPerBatch    The maximum number of records to allow in a batch. 批量允许的最大记录数。
      * @param appender              The callback to invoke for each batch. The arguments are last
      *                              write offset, record list, and the return result is the new
      *                              last write offset.
@@ -924,6 +928,8 @@ public final class QuorumController implements Controller {
                 // The appender callback will create an in-memory snapshot for each batch,
                 // since we might need to revert to any of them. We will only return the final
                 // offset of the last batch, however.
+                // 如果结果是非原子的，则根据需要将其拆分为任意数量的批次。appender 回调将为每个批次创建一个内存快照，
+                // 因为我们可能需要恢复到其中任何一个。但是，我们只会返回最后一批的最终偏移量。
                 int startIndex = 0, numBatches = 0;
                 while (true) {
                     numBatches++;
@@ -1790,6 +1796,7 @@ public final class QuorumController implements Controller {
 
     @Override
     // HINTS 接受创建主题的请求
+    // QuorumController
     public CompletableFuture<CreateTopicsResponseData> createTopics(
         ControllerRequestContext context, // 请求上下文（含超时时间、权限等 ）
         CreateTopicsRequestData request, // 创建主题请求
@@ -1797,6 +1804,7 @@ public final class QuorumController implements Controller {
         if (request.topics().isEmpty()) {
             return CompletableFuture.completedFuture(new CreateTopicsResponseData());
         }
+        // 追加创建主题事件
         return appendWriteEvent("createTopics", context.deadlineNs(),
             () -> replicationControl.createTopics(context, request, describable));
     }

@@ -228,6 +228,7 @@ public class LogSegment implements Closeable {
     /**
      * Append the given messages starting with the given offset. Add
      * an entry to the index if needed.
+     * 从给定偏移开始的给定消息附加。如果需要，将条目添加到索引中。
      *
      * It is assumed this method is being called from within a lock, it is not thread-safe otherwise.
      *

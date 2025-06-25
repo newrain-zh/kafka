@@ -17,7 +17,6 @@
 package kafka.examples;
 
 import org.apache.kafka.clients.admin.Admin;
-import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -70,6 +69,7 @@ public class Utils {
         Properties props = new Properties();
         props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(AdminClientConfig.CLIENT_ID_CONFIG, "client-" + UUID.randomUUID());
+
         try (Admin admin = Admin.create(props)) {
             // delete topics if present
             try {
@@ -86,9 +86,10 @@ public class Utils {
                 // use default RF to avoid NOT_ENOUGH_REPLICAS error with minISR > 1
                 short replicationFactor = -1;
 //                short replicationFactor = 3;
+                numPartitions = 1;
                 List<NewTopic> newTopics = Arrays.stream(topicNames)
-                    .map(name -> new NewTopic(name, numPartitions, replicationFactor))
-                    .collect(Collectors.toList());
+                        .map(name -> new NewTopic(name, 1, replicationFactor))
+                        .collect(Collectors.toList());
                 try {
                     admin.createTopics(newTopics).all().get();
                     printOut("Created topics: %s", Arrays.toString(topicNames));
