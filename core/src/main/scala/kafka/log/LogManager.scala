@@ -1376,6 +1376,7 @@ class LogManager(logDirs: Seq[File],
   /**
    * Delete any eligible logs. Return the number of segments deleted.
    * Only consider logs that are not compacted.
+   * 删除任何符合条件的日志。返回已删除的区段数。仅考虑未压缩的日志。
    */
   private def cleanupLogs(): Unit = {
     debug("Beginning log cleanup...")

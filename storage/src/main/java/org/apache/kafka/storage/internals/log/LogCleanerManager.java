@@ -302,6 +302,8 @@ public class LogCleanerManager {
      * and do not have other deletion or compaction in progress.
      * This is to handle potential race between retention and cleaner threads when users
      * switch topic configuration between compacted and non-compacted topic.
+     * 暂停日志清理 对于未启用压缩且没有其他正在进行的删除或压缩的日志。
+     * 这是为了处理当用户在压缩主题和非压缩主题之间切换主题配置时，保留线程和清理线程之间可能出现的竞争。
      *
      * @return retention logs that have log cleaning successfully paused
      */

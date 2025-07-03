@@ -1841,10 +1841,11 @@ public class UnifiedLog implements AutoCloseable {
                     int numToDelete = deletable.size();
                     if (numToDelete > 0) {
                         // we must always have at least one segment, so if we are going to delete all the segments, create a new one first
+                        // 我们必须始终至少有一个 Segment，因此如果我们要删除所有 Segment，请先创建一个新的 Segment
                         List<LogSegment> segmentsToDelete = deletable;
-                        if (localLog.segments().numberOfSegments() == numToDelete) {
-                            LogSegment newSegment = roll();
-                            if (deletable.get(deletable.size() - 1).baseOffset() == newSegment.baseOffset()) {
+                        if (localLog.segments().numberOfSegments() == numToDelete) { // 检查是否删除所有Segment
+                            LogSegment newSegment = roll(); // 创建一个新的 Segment
+                            if (deletable.get(deletable.size() - 1).baseOffset() == newSegment.baseOffset()) { // 被删除的最后一个Segment是空活跃段
                                 logger.warn("Empty active segment at {} was deleted and recreated due to {}", deletable.get(deletable.size() - 1).baseOffset(), reason);
                                 deletable.remove(deletable.size() - 1);
                                 segmentsToDelete = List.copyOf(deletable);
@@ -1853,6 +1854,7 @@ public class UnifiedLog implements AutoCloseable {
                         localLog.checkIfMemoryMappedBufferClosed();
                         if (!segmentsToDelete.isEmpty()) {
                             // increment the local-log-start-offset or log-start-offset before removing the segment for lookups
+                            // 在删除 segment 进行查找之前增加 local-log-start-offset 或 log-start-offset
                             long newLocalLogStartOffset = localLog.segments().higherSegment(segmentsToDelete.get(segmentsToDelete.size() - 1).baseOffset()).get().baseOffset();
                             if (remoteLogEnabledAndRemoteCopyEnabled()) {
                                 maybeIncrementLocalLogStartOffset(newLocalLogStartOffset, LogStartOffsetIncrementReason.SegmentDeletion);
@@ -1860,6 +1862,7 @@ public class UnifiedLog implements AutoCloseable {
                                 maybeIncrementLogStartOffset(newLocalLogStartOffset, LogStartOffsetIncrementReason.SegmentDeletion);
                             }
                             // remove the segments for lookups
+                            // 删除用于查找的区段
                             localLog.removeAndDeleteSegments(segmentsToDelete, true, reason);
                         }
                         deleteProducerSnapshots(deletable, true);
@@ -1872,6 +1875,8 @@ public class UnifiedLog implements AutoCloseable {
      * If topic deletion is enabled, delete any local log segments that have either expired due to time based
      * retention or because the log size is > retentionSize. Whether or not deletion is enabled, delete any local
      * log segments that are before the log start offset
+     * 如果启用了主题删除，请删除由于基于时间的保留或由于日志大小> retentionSize 而过期的任何本地日志分段。
+     * 无论是否启用删除，请删除 log start offset 之前的所有本地日志 Segment
      */
     public int deleteOldSegments() throws IOException {
         if (config().delete) {
@@ -1887,6 +1892,9 @@ public class UnifiedLog implements AutoCloseable {
         boolean execute(LogSegment segment, Optional<LogSegment> nextSegmentOpt) throws IOException;
     }
 
+    /*
+        基于时间删除
+     */
     private int deleteRetentionMsBreachedSegments() throws IOException {
         long retentionMs = UnifiedLog.localRetentionMs(config(), remoteLogEnabledAndRemoteCopyEnabled());
         if (retentionMs < 0) return 0;
@@ -1925,6 +1933,9 @@ public class UnifiedLog implements AutoCloseable {
         });
     }
 
+    /*
+        基于大小删除
+     */
     private int deleteRetentionSizeBreachedSegments() throws IOException {
         long retentionSize = UnifiedLog.localRetentionSize(config(), remoteLogEnabledAndRemoteCopyEnabled());
         long logSize = size();
@@ -2072,6 +2083,7 @@ public class UnifiedLog implements AutoCloseable {
     /**
      * Roll the local log over to a new active segment starting with the localLog.logEndOffset.
      * This will trim the index to the exact size of the number of entries it currently contains.
+     * 将本地日志滚动到以 localLog.logEndOffset 开头的新活动分段。这会将索引修剪为其当前包含的条目数的确切大小。
      *
      * @return The newly rolled segment
      */
@@ -2083,6 +2095,7 @@ public class UnifiedLog implements AutoCloseable {
      * Roll the local log over to a new active segment starting with the expectedNextOffset (when provided),
      * or localLog.logEndOffset otherwise. This will trim the index to the exact size of the number of entries
      * it currently contains.
+     * 将本地日志滚动到以expectedNextOffset（如果提供）开头的新活动段，否则以localLog.logEndOffset开头。这会将索引修剪为其当前包含的条目数的确切大小。
      *
      * @return The newly rolled segment
      */
@@ -2160,6 +2173,7 @@ public class UnifiedLog implements AutoCloseable {
 
     /**
      * Completely delete the local log directory and all contents from the file system with no delay
+     * 毫不拖延地完全删除本地日志目录和文件系统中的所有内容
      */
     public void delete() {
         maybeHandleIOException(

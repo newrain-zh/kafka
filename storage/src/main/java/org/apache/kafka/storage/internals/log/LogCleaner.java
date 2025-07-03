@@ -196,6 +196,7 @@ public class LogCleaner implements BrokerReconfigurable {
 
     /**
      * Start the background cleaner threads.
+     * 启动后台清理线程。
      */
     public void startup() {
         if (config.numThreads < 1) {
@@ -463,6 +464,7 @@ public class LogCleaner implements BrokerReconfigurable {
     /**
      * The cleaner threads do the actual log cleaning. Each thread processes does its cleaning repeatedly by
      * choosing the dirtiest log, cleaning it, and then swapping in the cleaned segments.
+     * 清理线程执行实际的日志清理。每个线程进程通过选择最脏的日志，清理它，然后交换已清理的段来重复执行其清理。
      */
     public class CleanerThread extends ShutdownableThread {
         private final Logger logger = new LogContext(logPrefix).logger(CleanerThread.class);
@@ -550,7 +552,7 @@ public class LogCleaner implements BrokerReconfigurable {
                 return false;
             }
         }
-
+        // TODO 压缩日志
         private boolean cleanFilthiestLog() throws LogCleaningException {
             PreCleanStats preCleanStats = new PreCleanStats();
             Optional<LogToClean> ltc = cleanerManager.grabFilthiestCompactedLog(time, preCleanStats);

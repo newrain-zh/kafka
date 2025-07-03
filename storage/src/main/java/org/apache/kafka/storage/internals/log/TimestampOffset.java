@@ -19,6 +19,7 @@ package org.apache.kafka.storage.internals.log;
 /**
  * The mapping between a timestamp to a message offset. The entry means that any message whose timestamp is greater
  * than that timestamp must be at or after that offset.
+ * 时间戳与消息偏移量之间的映射。该条目意味着时间戳大于该时间戳的任何消息都必须位于该偏移量或之后。
  */
 public class TimestampOffset implements IndexEntry {
 

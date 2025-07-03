@@ -190,6 +190,7 @@ public class LogSegment implements Closeable {
     /**
      * The first time this is invoked, it will result in a time index lookup (including potential materialization of
      * the time index).
+     * 第一次调用此函数时，将导致时间索引查找（包括时间索引的潜在具体化）。
      */
     public TimestampOffset readMaxTimestampAndOffsetSoFar() throws IOException {
         if (maxTimestampAndOffsetSoFar == TimestampOffset.UNKNOWN)
@@ -843,10 +844,12 @@ public class LogSegment implements Closeable {
     }
 
     /**
+     * LogSegment
      * The largest timestamp this segment contains.
+     * 此分段包含的最大时间戳。
      */
     public long largestTimestamp() throws IOException {
-        long maxTimestampSoFar = maxTimestampSoFar();
+        long maxTimestampSoFar = maxTimestampSoFar(); // 索引项（TimestampOffset）中的最大时间戳
         if (maxTimestampSoFar >= 0)
             return maxTimestampSoFar;
         return lastModified();
