@@ -1,4 +1,4 @@
-package kafka.reading.io;
+package kafka.demo.io;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;

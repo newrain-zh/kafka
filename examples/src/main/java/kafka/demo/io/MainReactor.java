@@ -1,4 +1,4 @@
-package kafka.reading.io;
+package kafka.demo.io;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;

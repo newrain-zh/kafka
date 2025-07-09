@@ -1,4 +1,4 @@
-package kafka.reading.select;
+package kafka.demo.select;
 
 import java.util.Arrays;
 import java.util.Random;

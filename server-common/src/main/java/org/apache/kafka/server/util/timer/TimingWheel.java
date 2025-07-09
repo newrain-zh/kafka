@@ -95,31 +95,33 @@ import java.util.concurrent.atomic.AtomicInteger;
  * It is caller's responsibility to enforce it. Simultaneous add calls are thread-safe.
  */
 public class TimingWheel {
-    private final long tickMs;
-    private final int wheelSize;
-    private final AtomicInteger taskCounter;
+    // 时间轮的基本单元（毫秒）可以理解为精确度，也就是时间间隔
+    private final long                      tickMs;
+    // 时间轮的槽位或者 bucket 的数量 tickMs * wheelSize
+    private final int                       wheelSize;
+    // 原子计数器，跟踪整个时间轮体系中的任务总数<br>- 用于优化任务管理（如空桶检测）
+    private final AtomicInteger             taskCounter;
+    // 延迟队列 存储所有包含任务的槽（桶）
     private final DelayQueue<TimerTaskList> queue;
-    private final long interval;
-    private final TimerTaskList[] buckets;
-    private long currentTimeMs;
+    // 时间轮总跨度（毫秒）<br>- 计算方式：tickMs * wheelSize<br>- 表示当前层级时间轮能处理的最大延迟时间
+    private final long                      interval;
+    // 时间轮的槽位或者 bucket
+    private final TimerTaskList[]           buckets;
+    // 当前时间轮的指针（毫秒）
+    private       long                      currentTimeMs;
 
     // overflowWheel can potentially be updated and read by two concurrent threads through add().
     // Therefore, it needs to be volatile due to the issue of Double-Checked Locking pattern with JVM
+    // 溢出型号可以通过add（）进行更新并通过两个并发线程读取。因此，由于使用JVM进行了双重检查的锁定模式，因此需要波动
     private volatile TimingWheel overflowWheel = null;
 
-    TimingWheel(
-        long tickMs,
-        int wheelSize,
-        long startMs,
-        AtomicInteger taskCounter,
-        DelayQueue<TimerTaskList> queue
-    ) {
-        this.tickMs = tickMs;
-        this.wheelSize = wheelSize;
-        this.taskCounter = taskCounter;
-        this.queue = queue;
-        this.buckets = new TimerTaskList[wheelSize];
-        this.interval = tickMs * wheelSize;
+    TimingWheel(long tickMs, int wheelSize, long startMs, AtomicInteger taskCounter, DelayQueue<TimerTaskList> queue) {
+        this.tickMs      = tickMs;
+        this.wheelSize   = wheelSize;
+        this.taskCounter = taskCounter; // 计数器
+        this.queue       = queue;
+        this.buckets     = new TimerTaskList[wheelSize];
+        this.interval    = tickMs * wheelSize;
         // rounding down to multiple of tickMs
         this.currentTimeMs = startMs - (startMs % tickMs);
 
@@ -128,48 +130,44 @@ public class TimingWheel {
         }
     }
 
+    // 建立更高层级的时间轮
     private synchronized void addOverflowWheel() {
         if (overflowWheel == null) {
-            overflowWheel = new TimingWheel(
-                interval,
-                wheelSize,
-                currentTimeMs,
-                taskCounter,
-                queue
-            );
+            overflowWheel = new TimingWheel(interval, wheelSize, currentTimeMs, taskCounter, queue);
         }
     }
-
+    // TimingWheel
+    // 添加任务（TimerTaskEntry）
     public boolean add(TimerTaskEntry timerTaskEntry) {
-        long expiration = timerTaskEntry.expirationMs;
-
-        if (timerTaskEntry.cancelled()) {
+        long expiration = timerTaskEntry.expirationMs; // timerTask.delayMs + Time.SYSTEM.hiResClockMs()
+        if (timerTaskEntry.cancelled()) { // 已经是 取消的任务，不添加
             // Cancelled
             return false;
-        } else if (expiration < currentTimeMs + tickMs) {
+        } else if (expiration < currentTimeMs + tickMs) { // 过期的任务不添加
             // Already expired
             return false;
         } else if (expiration < currentTimeMs + interval) {
             // Put in its own bucket
-            long virtualId = expiration / tickMs;
-            int bucketId = (int) (virtualId % (long) wheelSize);
-            TimerTaskList bucket = buckets[bucketId];
+            // 计算放入哪个 bucket
+            // (任务的过期时间/时间轮的间隔)%时间轮的间隔
+            long          virtualId = expiration / tickMs;
+            int           bucketId  = (int) (virtualId % (long) wheelSize);
+            TimerTaskList bucket    = buckets[bucketId];
             bucket.add(timerTaskEntry);
-
             // Set the bucket expiration time
-            if (bucket.setExpiration(virtualId * tickMs)) {
+            // 因为同一个 bucket 可能会重复添加任务，所以 bucket 的过期时间可能被更新
+            if (bucket.setExpiration(virtualId * tickMs)) { // 设置 bucket的任务的过期时间
                 // The bucket needs to be enqueued because it was an expired bucket
                 // We only need to enqueue the bucket when its expiration time has changed, i.e. the wheel has advanced
                 // and the previous buckets gets reused; further calls to set the expiration within the same wheel cycle
                 // will pass in the same value and hence return false, thus the bucket with the same expiration will not
                 // be enqueued multiple times.
-                queue.offer(bucket);
+                queue.offer(bucket); // bucket 添加进延迟队列
             }
-
             return true;
         } else {
             // Out of the interval. Put it into the parent timer
-            if (overflowWheel == null) addOverflowWheel();
+            if (overflowWheel == null) addOverflowWheel(); // 如果溢出 创建新层
             return overflowWheel.add(timerTaskEntry);
         }
     }

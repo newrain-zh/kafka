@@ -38,7 +38,9 @@ public interface Time {
     long milliseconds();
 
     /**
+     * Time
      * Returns the value returned by `nanoseconds` converted into milliseconds.
+     * 返回“纳秒”转换为毫秒的“纳秒”返回的值。
      */
     default long hiResClockMs() {
         return TimeUnit.NANOSECONDS.toMillis(nanoseconds());

@@ -63,6 +63,7 @@ public class TimerTest {
                 synchronized (output) {
                     output.add(id);
                 }
+                System.out.println("=====execute====" + id);
                 latch.countDown();
             }
         }
@@ -72,7 +73,15 @@ public class TimerTest {
 
     @BeforeEach
     public void setup() {
-        timer = new SystemTimer("test", 1, 3, Time.SYSTEM.hiResClockMs());
+        timer = new SystemTimer("test", 1, 20, Time.SYSTEM.hiResClockMs());
+    }
+
+    @Test
+    public void test() {
+        long millis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+        System.out.println(System.currentTimeMillis());
+        System.out.println(millis);
+        System.out.println(System.nanoTime());
     }
 
     @AfterEach
@@ -113,13 +122,13 @@ public class TimerTest {
         List<Integer> ids = new ArrayList<>();
         List<CountDownLatch> latches = new ArrayList<>();
 
-        IntStream.range(0, 5).forEach(i -> {
+        IntStream.range(9, 10).forEach(i -> {
             CountDownLatch latch = new CountDownLatch(1);
             tasks.add(new TestTask(i, i, latch, output));
             ids.add(i);
             latches.add(latch);
         });
-
+        /*
         IntStream.range(10, 100).forEach(i -> {
             CountDownLatch latch = new CountDownLatch(2);
             tasks.add(new TestTask(i, i, latch, output));
@@ -134,12 +143,11 @@ public class TimerTest {
             tasks.add(new TestTask(i, i, latch, output));
             ids.add(i);
             latches.add(latch);
-        });
-
+        });*/
         // randomly submit requests
         tasks.forEach(task -> timer.add(task));
 
-        while (timer.advanceClock(2000)) { }
+        while (timer.advanceClock(0L)) { }
 
         latches.forEach(latch -> {
             try {

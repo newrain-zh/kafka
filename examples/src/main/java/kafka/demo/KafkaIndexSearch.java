@@ -1,4 +1,4 @@
-package kafka.reading;
+package kafka.demo;
 
 import java.util.*;
 

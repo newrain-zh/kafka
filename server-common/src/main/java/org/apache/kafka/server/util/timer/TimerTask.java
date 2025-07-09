@@ -17,14 +17,16 @@
 package org.apache.kafka.server.util.timer;
 
 public abstract class TimerTask implements Runnable {
+
     private volatile TimerTaskEntry timerTaskEntry;
     // timestamp in millisecond
-    public final long delayMs;
+    public final     long           delayMs; // 延迟时间
 
     public TimerTask(long delayMs) {
         this.delayMs = delayMs;
     }
 
+    // 取消任务
     public void cancel() {
         synchronized (this) {
             if (timerTaskEntry != null) timerTaskEntry.remove();
@@ -40,10 +42,10 @@ public abstract class TimerTask implements Runnable {
         synchronized (this) {
             // if this timerTask is already held by an existing timer task entry,
             // we will remove such an entry first.
+            // 如果此TimerTask已经由现有的计时器任务条目持有，我们将首先删除此类条目。
             if (timerTaskEntry != null && timerTaskEntry != entry) {
                 timerTaskEntry.remove();
             }
-
             timerTaskEntry = entry;
         }
     }
