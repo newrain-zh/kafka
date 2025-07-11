@@ -633,7 +633,7 @@ public class ClassicKafkaConsumer<K, V> implements ConsumerDelegate<K, V> {
         acquireAndEnsureOpen();
         try {
             this.kafkaConsumerMetrics.recordPollStart(timer.currentTimeMs());
-
+            // 检查订阅状态
             if (this.subscriptions.hasNoSubscriptionOrUserAssignment()) {
                 throw new IllegalStateException("Consumer is not subscribed to any topics or assigned any partitions");
             }
@@ -642,8 +642,9 @@ public class ClassicKafkaConsumer<K, V> implements ConsumerDelegate<K, V> {
                 client.maybeTriggerWakeup();
 
                 // try to update assignment metadata BUT do not need to block on the timer for join group
+                // 尝试更新分配元数据，但不需要阻止加入组的计时器
                 updateAssignmentMetadataIfNeeded(timer, false);
-
+                // 数据拉取
                 final Fetch<K, V> fetch = pollForFetches(timer);
                 if (!fetch.isEmpty()) {
                     // before returning the fetched records, we can send off the next round of fetches
@@ -699,6 +700,7 @@ public class ClassicKafkaConsumer<K, V> implements ConsumerDelegate<K, V> {
         }
 
         // send any new fetches (won't resend pending fetches)
+        // 发送网络请求
         sendFetches();
 
         // We do not want to be stuck blocking in poll if we are missing some positions
@@ -707,7 +709,7 @@ public class ClassicKafkaConsumer<K, V> implements ConsumerDelegate<K, V> {
         // NOTE: the use of cachedSubscriptionHasAllFetchPositions means we MUST call
         // updateAssignmentMetadataIfNeeded before this method.
         if (!cachedSubscriptionHasAllFetchPositions && pollTimeout > retryBackoffMs) {
-            pollTimeout = retryBackoffMs;
+            pollTimeout = retryBackoffMs; // 提前发送下一轮请求
         }
 
         log.trace("Polling for fetches with timeout {}", pollTimeout);

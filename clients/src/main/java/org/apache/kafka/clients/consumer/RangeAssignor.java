@@ -44,6 +44,9 @@ import java.util.stream.Collectors;
  * and the consumers in lexicographic order. We then divide the number of partitions by the total number of
  * consumers to determine the number of partitions to assign to each consumer. If it does not evenly
  * divide, then the first few consumers will have one extra partition.
+ * 范围分配器基于每个主题工作。对于每个主题，
+ * 我们按数字顺序排列可用分区，并按字典顺序排列使用者。然后，我们将分区数除以使用者总数，
+ * 以确定要分配给每个使用者的分区数。如果它没有均匀划分，那么前几个消费者将有一个额外的分区。
  *
  * <p>For example, suppose there are two consumers <code>C0</code> and <code>C1</code>, two topics <code>t0</code> and
  * <code>t1</code>, and each topic has 3 partitions, resulting in partitions <code>t0p0</code>, <code>t0p1</code>,
@@ -118,12 +121,20 @@ public class RangeAssignor extends AbstractPartitionAssignor {
      * the subset of partitions that can be aligned on racks, while retaining the same co-partitioning and
      * per-topic balancing guarantees as non-rack-aware range assignment. The remaining partitions are assigned
      * using standard non-rack-aware range assignment logic, which may result in mis-aligned racks.
+     * 为具有提供的订阅的使用者执行指定分区的范围分配。如果为一个或多个使用者启用了机架感知，则我们首先执行机架感知分配，
+     * 以分配可在机架上对齐的分区子集，
+     * 同时保留与非机架感知范围分配相同的共分区和每个主题的平衡保证。
+     * 其余分区使用标准的非机架感知范围分配逻辑进行分配，这可能会导致机架未对齐。
      */
     @Override
     public Map<String, List<TopicPartition>> assignPartitions(Map<String, List<PartitionInfo>> partitionsPerTopic,
                                                               Map<String, Subscription> subscriptions) {
+        // 主题-消费者 map
+        // memberInfo: 包含消费者 ID、group、instanceId、rackId
         Map<String, List<MemberInfo>> consumersPerTopic = consumersPerTopic(subscriptions);
+        //获取机架信息
         Map<String, String> consumerRacks = consumerRacks(subscriptions);
+        // 过滤无分区的主题
         List<TopicAssignmentState> topicAssignmentStates = partitionsPerTopic.entrySet().stream()
                 .filter(e -> !e.getValue().isEmpty())
                 .map(e -> new TopicAssignmentState(e.getKey(), e.getValue(), consumersPerTopic.get(e.getKey()), consumerRacks))

@@ -14,15 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package kafka.examples;
+package kafka.examples.assignor;
 
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.clients.consumer.NoOffsetForPartitionException;
-import org.apache.kafka.clients.consumer.OffsetOutOfRangeException;
+import kafka.examples.Utils;
+import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.AuthorizationException;
@@ -33,9 +28,9 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 
 import java.time.Duration;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 
 import static java.util.Collections.singleton;
@@ -45,33 +40,28 @@ import static java.util.Collections.singleton;
  * The thread does not stop until all records are completed or an exception is raised.
  */
 public class Consumer extends Thread implements ConsumerRebalanceListener {
-    private final String bootstrapServers;
-    private final String topic;
-    private final String groupId;
-    private final Optional<String> instanceId;
-    private final boolean readCommitted;
-    private final int numRecords;
-    private final CountDownLatch latch;
-    private volatile boolean closed;
-    private int remainingRecords;
+    private final    String           bootstrapServers;
+    private final    List<String>     topic;
+    private final    String           groupId;
+    private final    Optional<String> instanceId;
+    private final    boolean          readCommitted;
+    private final    int              numRecords;
+    private final    CountDownLatch   latch;
+    private volatile boolean          closed;
+    private          int              remainingRecords;
+    private final    String           clientId;
 
-    public Consumer(String threadName,
-                    String bootstrapServers,
-                    String topic,
-                    String groupId,
-                    Optional<String> instanceId,
-                    boolean readCommitted,
-                    int numRecords,
-                    CountDownLatch latch) {
+    public Consumer(String threadName, String bootstrapServers, List<String> topic, String groupId, Optional<String> instanceId, boolean readCommitted, int numRecords, CountDownLatch latch, String clientId) {
         super(threadName);
         this.bootstrapServers = bootstrapServers;
-        this.topic = topic;
-        this.groupId = groupId;
-        this.instanceId = instanceId;
-        this.readCommitted = readCommitted;
-        this.numRecords = numRecords;
+        this.topic            = topic;
+        this.groupId          = groupId;
+        this.instanceId       = instanceId;
+        this.readCommitted    = readCommitted;
+        this.numRecords       = numRecords;
         this.remainingRecords = numRecords;
-        this.latch = latch;
+        this.latch            = latch;
+        this.clientId         = clientId;
     }
 
     @Override
@@ -80,9 +70,9 @@ public class Consumer extends Thread implements ConsumerRebalanceListener {
         try (KafkaConsumer<Integer, String> consumer = createKafkaConsumer()) {
             // subscribes to a list of topics to get dynamically assigned partitions
             // this class implements the rebalance listener that we pass here to be notified of such events
-            consumer.subscribe(singleton(topic), this);
+            consumer.subscribe(topic, this);
             Utils.printOut("Subscribed to %s", topic);
-            while (!closed && remainingRecords > 0) {
+            while (!closed) {
                 try {
                     // if required, poll updates partition assignment and invokes the configured rebalance listener
                     // then tries to fetch records sequentially using the last committed offset or auto.offset.reset policy
@@ -94,9 +84,7 @@ public class Consumer extends Thread implements ConsumerRebalanceListener {
                     for (ConsumerRecord<Integer, String> record : records) {
                         Utils.maybePrintRecord(numRecords, record);
                     }
-                    remainingRecords -= records.count();
-                } catch (AuthorizationException | UnsupportedVersionException
-                         | RecordDeserializationException e) {
+                } catch (AuthorizationException | UnsupportedVersionException | RecordDeserializationException e) {
                     // we can't recover from these exceptions
                     Utils.printErr(e.getMessage());
                     shutdown();
@@ -132,7 +120,7 @@ public class Consumer extends Thread implements ConsumerRebalanceListener {
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         // client id is not required, but it's good to track the source of requests beyond just ip/port
         // by allowing a logical application name to be included in server-side request logging
-        props.put(ConsumerConfig.CLIENT_ID_CONFIG, "client-" + UUID.randomUUID());
+        props.put(ConsumerConfig.CLIENT_ID_CONFIG, clientId);
         // consumer group id is required when we use subscribe(topics) for group management
         props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         // sets static membership to improve availability (e.g. rolling restart)

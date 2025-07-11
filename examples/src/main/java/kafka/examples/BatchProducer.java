@@ -31,7 +31,7 @@ public class BatchProducer {
 //        props.put("compression.type", "gzip");  // 可选：压缩以验证 batch
 
         KafkaProducer<String, String> producer = new KafkaProducer<>(props);
-       for (;;){
+        for (;;){
             List<Future<RecordMetadata>>  list     = new ArrayList<>();
             for (int i = 0; i < 100000; i++) {
 //            RecordMetadata recordMetadata = producer.send(new ProducerRecord<>("test-batch", "key" + i, "value" + i)).get();
