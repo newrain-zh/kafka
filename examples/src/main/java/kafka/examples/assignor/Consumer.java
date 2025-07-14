@@ -33,8 +33,6 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 
-import static java.util.Collections.singleton;
-
 /**
  * A simple consumer thread that subscribes to a topic, fetches new records and prints them.
  * The thread does not stop until all records are completed or an exception is raised.
@@ -130,6 +128,10 @@ public class Consumer extends Thread implements ConsumerRebalanceListener {
         // key and value are just byte arrays, so we need to set appropriate deserializers
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, IntegerDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+//        props.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, "org.apache.kafka.clients.consumer.StickyAssignor");
+        props.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, "org.apache.kafka.clients.consumer.CooperativeStickyAssignor");
+//        props.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG, "org.apache.kafka.clients.consumer.StickyAssignor");
+
         if (readCommitted) {
             // skips ongoing and aborted transactions
             props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
